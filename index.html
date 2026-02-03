@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Our Valentine Journey</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600&family=Press+Start+2P&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="stage" aria-label="Journey map">
+      <canvas id="game" tabindex="0"></canvas>
+    </main>
+
+    <header class="hud">
+      <div class="hud__left">
+        <div class="title">Our Valentine Journey</div>
+        <div class="subtitle">Up / Down to walk along the path · Press <kbd>E</kbd> near a checkpoint</div>
+      </div>
+      <button id="musicBtn" class="btn" type="button" aria-pressed="false">Music: Off</button>
+    </header>
+
+    <div class="legend">
+      <span class="chip chip--path"></span><span>Path</span>
+      <span class="chip chip--checkpoint"></span><span>Checkpoint</span>
+    </div>
+
+    <div id="overlay" class="overlay" hidden>
+      <div class="modal modal--pixel" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <div class="modal__pixel-border">
+          <div class="modal__header">
+            <span class="modal__heart" aria-hidden="true">♥</span>
+            <div class="modal__title" id="modalTitle">CHECKPOINT</div>
+            <button id="closeOverlayBtn" class="iconBtn iconBtn--pixel" type="button" aria-label="Close">×</button>
+          </div>
+
+          <div class="modal__body">
+            <div class="checkpointMeta">
+              <span class="checkpointMeta__date" id="cpDate">DATE</span>
+              <span class="checkpointMeta__tag" id="cpTag">MEMORY</span>
+            </div>
+
+            <div class="checkpointCard">
+              <div class="checkpointCard__imgWrap">
+                <img id="cpImg" alt="" />
+              </div>
+              <div class="checkpointCard__text">
+                <p id="cpText"></p>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal__footer">
+            <span class="modal__hint">[ ESC ] CLOSE</span>
+            <button id="okBtn" class="btn btn--pixel" type="button">BACK TO MAP</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="./main.js" defer></script>
+  </body>
+</html>
