@@ -22,7 +22,7 @@
         <div class="title">Our Valentine Journey</div>
         <div class="subtitle">Up / Down to walk along the path · Press <kbd>E</kbd> near a checkpoint</div>
       </div>
-      <button id="musicBtn" class="btn" type="button" aria-pressed="false">Music: Off</button>
+      <button id="musicBtn" class="btn" type="button" aria-pressed="true">Music: On</button>
     </header>
 
     <div class="legend">
@@ -32,10 +32,11 @@
 
     <div id="overlay" class="overlay" hidden>
       <div class="modal modal--pixel" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-        <div class="modal__pixel-border">
+        <div class="modal__pixel-border modal__valentine">
           <div class="modal__header">
             <span class="modal__heart" aria-hidden="true">♥</span>
             <div class="modal__title" id="modalTitle">CHECKPOINT</div>
+            <span class="modal__heart" aria-hidden="true">♥</span>
             <button id="closeOverlayBtn" class="iconBtn iconBtn--pixel" type="button" aria-label="Close">×</button>
           </div>
 
@@ -46,8 +47,11 @@
             </div>
 
             <div class="checkpointCard">
-              <div class="checkpointCard__imgWrap">
+              <div class="checkpointCard__imgWrap checkpointCarousel">
+                <button type="button" class="carouselBtn carouselBtn--prev" id="cpCarouselPrev" aria-label="Previous image">‹</button>
                 <img id="cpImg" alt="" />
+                <button type="button" class="carouselBtn carouselBtn--next" id="cpCarouselNext" aria-label="Next image">›</button>
+                <div class="carouselDots" id="cpCarouselDots" aria-hidden="true"></div>
               </div>
               <div class="checkpointCard__text">
                 <p id="cpText"></p>
@@ -58,6 +62,25 @@
           <div class="modal__footer">
             <span class="modal__hint">[ ESC ] CLOSE</span>
             <button id="okBtn" class="btn btn--pixel" type="button">BACK TO MAP</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="valentineOverlay" class="overlay valentine-overlay" hidden aria-labelledby="valentineTitle">
+      <div class="modal modal--pixel modal--valentine-ask" role="dialog" aria-modal="true">
+        <div class="modal__pixel-border modal__valentine">
+          <div class="modal__header modal__header--centered">
+            <span class="modal__heart" aria-hidden="true">♥</span>
+            <h2 class="modal__title modal__title--big" id="valentineTitle">WILL YOU BE MY VALENTINE?</h2>
+            <span class="modal__heart" aria-hidden="true">♥</span>
+          </div>
+          <div class="modal__body modal__body--valentine-ask">
+            <div id="valentinePlayArea" class="valentine-play-area">
+              <button id="valentineYesBtn" class="btn btn--pixel btn--valentine-yes" type="button">YES!</button>
+              <button id="valentineCloseBtn" class="btn btn--pixel btn--valentine-close" type="button">No</button>
+            </div>
+            <div class="valentine-tip">Tip: The No button is a bit shy like me <span class="valentine-tip__emoji">🙃</span></div>
           </div>
         </div>
       </div>

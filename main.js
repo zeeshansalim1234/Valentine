@@ -14,8 +14,16 @@
   const cpTag = document.getElementById("cpTag");
   const cpImg = document.getElementById("cpImg");
   const cpText = document.getElementById("cpText");
+  const cpCarouselPrev = document.getElementById("cpCarouselPrev");
+  const cpCarouselNext = document.getElementById("cpCarouselNext");
+  const cpCarouselDots = document.getElementById("cpCarouselDots");
+  const cpCarouselWrap = document.querySelector(".checkpointCarousel");
   const modalTitle = document.getElementById("modalTitle");
   const musicBtn = document.getElementById("musicBtn");
+  const valentineOverlay = document.getElementById("valentineOverlay");
+  const valentineYesBtn = document.getElementById("valentineYesBtn");
+  const valentineCloseBtn = document.getElementById("valentineCloseBtn");
+  const valentinePlayArea = document.getElementById("valentinePlayArea");
 
   // Pixel-art resolution (scaled to fill window; crisp pixels)
   const LOG_W = 480;
@@ -129,55 +137,16 @@
   // ----- Checkpoints -----
   // Put placeholders now; you can add as many as you want later.
   // Each checkpoint uses "s" (distance along path).
+  const loremIpsum = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
   const checkpoints = [
-    {
-      id: "cp-1",
-      title: "Checkpoint 1",
-      date: "Add a date later",
-      tag: "First memory",
-      text:
-        "Replace this text with what you did that day. Keep it short and sweet — 2-4 lines looks best.",
-      imageSrc: "",
-      s: totalLen * 0.15,
-    },
-    {
-      id: "cp-2",
-      title: "Checkpoint 2",
-      date: "Add a date later",
-      tag: "Favorite moment",
-      text:
-        "You can also point imageSrc to a local image like ./photos/our-day.jpg once you add it.",
-      imageSrc: "",
-      s: totalLen * 0.35,
-    },
-    {
-      id: "cp-3",
-      title: "Checkpoint 3",
-      date: "Add a date later",
-      tag: "The one I replay",
-      text:
-        "When you’re ready, add more checkpoints and we’ll tune the zig‑zag to fit all of them.",
-      imageSrc: "",
-      s: totalLen * 0.55,
-    },
-    {
-      id: "cp-4",
-      title: "Checkpoint 4",
-      date: "Add a date later",
-      tag: "Memory",
-      text: "Add your date and a short write-up here.",
-      imageSrc: "",
-      s: totalLen * 0.75,
-    },
-    {
-      id: "cp-5",
-      title: "Checkpoint 5",
-      date: "Add a date later",
-      tag: "Memory",
-      text: "Add your date and a short write-up here.",
-      imageSrc: "",
-      s: totalLen * 0.92,
-    },
+    { id: "cp-1", title: "Beach", date: "Oct 29 2025", tag: "Memory", text: loremIpsum, images: ["./photos/beach.jpeg"], s: totalLen * 0.10 },
+    { id: "cp-2", title: "Bowen", date: "Nov 2 2025", tag: "Memory", text: loremIpsum, images: ["./photos/bowen.jpeg"], s: totalLen * 0.22 },
+    { id: "cp-3", title: "Cook", date: "Nov 8 2025", tag: "Memory", text: loremIpsum, images: ["./photos/cook.jpeg"], s: totalLen * 0.34 },
+    { id: "cp-4", title: "Airport", date: "Dec 11 2025", tag: "Memory", text: loremIpsum, images: ["./photos/airport.jpeg"], s: totalLen * 0.46 },
+    { id: "cp-5", title: "Getaway", date: "Dec 25 2025", tag: "Memory", text: loremIpsum, images: ["./photos/getaway.jpeg", "./photos/getaway2.jpeg"], s: totalLen * 0.58 },
+    { id: "cp-6", title: "Christmas", date: "Dec 26 2025", tag: "Memory", text: loremIpsum, images: ["./photos/christmas0.jpeg", "./photos/christmas.jpeg"], s: totalLen * 0.70 },
+    { id: "cp-7", title: "New Year", date: "Dec 31 2025", tag: "Memory", text: loremIpsum, images: ["./photos/newyear.jpeg", "./photos/newyear2.jpeg"], s: totalLen * 0.82 },
+    { id: "cp-8", title: "Adventures", date: "Jan 2026", tag: "Memory", text: loremIpsum, images: ["./photos/zipline.jpeg", "./photos/hiking.jpeg", "./photos/skiing.jpeg", "./photos/skating.jpeg", "./photos/wallclimbing.jpeg"], s: totalLen * 0.92 },
   ].map((cp) => ({ ...cp, pos: posAtS(cp.s) }));
 
   // ----- Tile map (modern pixel look) -----
@@ -225,7 +194,7 @@
   };
 
   // ----- Audio: try music.mp3, else soft romantic chord loop -----
-  const MUSIC_URL = "music.mp3";
+  const MUSIC_URL = "motion.mp3";
   let audio = {
     ctx: null,
     gain: null,
@@ -327,10 +296,34 @@
   }
 
   musicBtn.addEventListener("click", () => setMusic(!audio.on));
+  setMusic(true);
+
+  function tryStartMusic() {
+    if (!audio.on) return;
+    if (audio.track) {
+      audio.useTrack = true;
+      if (audio.timer) {
+        clearInterval(audio.timer);
+        audio.timer = null;
+      }
+      audio.track.play().catch(() => {
+        audio.useTrack = false;
+        startRomanticFallback();
+      });
+    } else {
+      startRomanticFallback();
+    }
+  }
+  document.addEventListener("keydown", tryStartMusic, { once: true });
+  document.addEventListener("click", tryStartMusic, { once: true });
+  document.addEventListener("touchstart", tryStartMusic, { once: true });
 
   // ----- Overlay -----
   let overlayOpen = false;
+  let valentineOverlayOpen = false;
+  let wasAtEndLastFrame = false;
   let nearestCheckpoint = null;
+  const passedCheckpointIds = new Set();
 
   function openCheckpoint(cp) {
     overlayOpen = true;
@@ -340,11 +333,57 @@
     cpTag.textContent = cp.tag || "Memory";
     cpText.textContent = cp.text || "";
 
-    if (cp.imageSrc) {
-      cpImg.src = cp.imageSrc;
-      cpImg.alt = `${cp.title || "Checkpoint"} photo`;
+    const images = cp.images && cp.images.length ? cp.images : (cp.imageSrc ? [cp.imageSrc] : []);
+    let carouselIndex = 0;
+
+    function updateCarouselAspect() {
+      if (!cpCarouselWrap || !cpImg.naturalWidth || !cpImg.naturalHeight) return;
+      const w = cpImg.naturalWidth;
+      const h = cpImg.naturalHeight;
+      cpCarouselWrap.style.aspectRatio = `${w} / ${h}`;
+    }
+    cpImg.onload = updateCarouselAspect;
+
+    function setCarouselIndex(i) {
+      carouselIndex = (i + images.length) % images.length;
+      cpImg.src = images[carouselIndex];
+      cpImg.alt = `${cp.title || "Checkpoint"} photo ${carouselIndex + 1} of ${images.length}`;
+      if (cpCarouselDots) {
+        const dots = cpCarouselDots.querySelectorAll(".carouselDots__dot");
+        dots.forEach((d, k) => d.classList.toggle("is-active", k === carouselIndex));
+      }
+    }
+
+    if (images.length > 0) {
+      cpImg.src = images[0];
+      cpImg.alt = `${cp.title || "Checkpoint"} photo 1 of ${images.length}`;
+      if (cpCarouselWrap) {
+        if (images.length > 1) {
+          cpCarouselWrap.classList.remove("carouselSingle");
+          if (cpCarouselDots) {
+            cpCarouselDots.innerHTML = "";
+            images.forEach((_, i) => {
+              const dot = document.createElement("button");
+              dot.type = "button";
+              dot.className = "carouselDots__dot" + (i === 0 ? " is-active" : "");
+              dot.setAttribute("aria-label", `Image ${i + 1}`);
+              dot.addEventListener("click", () => setCarouselIndex(i));
+              cpCarouselDots.appendChild(dot);
+            });
+          }
+          if (cpCarouselPrev) cpCarouselPrev.onclick = () => setCarouselIndex(carouselIndex - 1);
+          if (cpCarouselNext) cpCarouselNext.onclick = () => setCarouselIndex(carouselIndex + 1);
+        } else {
+          cpCarouselWrap.classList.add("carouselSingle");
+        }
+      }
+      // Ensure aspect ratio matches current image once it's loaded (cached images may already be ready)
+      updateCarouselAspect();
     } else {
-      // Inline placeholder image (SVG)
+      if (cpCarouselWrap) {
+        cpCarouselWrap.classList.add("carouselSingle");
+        cpCarouselWrap.style.aspectRatio = "";
+      }
       const svg = encodeURIComponent(`
         <svg xmlns="http://www.w3.org/2000/svg" width="800" height="600">
           <defs>
@@ -358,7 +397,7 @@
             <text x="50%" y="46%" dominant-baseline="middle" text-anchor="middle"
               font-family="monospace" font-size="28" fill="#e9f0ff">Add a photo later</text>
             <text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle"
-              font-family="monospace" font-size="16" fill="#b7c6e6">Set imageSrc in main.js</text>
+              font-family="monospace" font-size="16" fill="#b7c6e6">Set images in main.js</text>
           </g>
         </svg>
       `);
@@ -376,7 +415,58 @@
     overlayOpen = false;
     overlay.classList.remove("is-open");
     overlay.hidden = true;
-    document.body.style.overflow = "";
+    document.body.style.overflow = valentineOverlayOpen ? "hidden" : "";
+    try { canvas.focus(); } catch (_) {}
+  }
+
+  function moveValentineNotYetButton() {
+    if (!valentineCloseBtn || !valentinePlayArea || !valentineYesBtn) return;
+    const playRect = valentinePlayArea.getBoundingClientRect();
+    const yesRect = valentineYesBtn.getBoundingClientRect();
+    const yesLeft = yesRect.left - playRect.left;
+    const yesTop = yesRect.top - playRect.top;
+    const yesRight = yesLeft + valentineYesBtn.offsetWidth;
+    const yesBottom = yesTop + valentineYesBtn.offsetHeight;
+    const pad = 4;
+    const w = valentinePlayArea.offsetWidth;
+    const h = valentinePlayArea.offsetHeight;
+    const bw = valentineCloseBtn.offsetWidth;
+    const bh = valentineCloseBtn.offsetHeight;
+    const maxX = Math.max(0, w - bw);
+    const maxY = Math.max(0, h - bh);
+    let left;
+    let top;
+    for (let tries = 0; tries < 30; tries++) {
+      left = maxX > 0 ? Math.floor(Math.random() * (maxX + 1)) : 0;
+      top = maxY > 0 ? Math.floor(Math.random() * (maxY + 1)) : 0;
+      const noRight = left + bw;
+      const noBottom = top + bh;
+      const overlaps = left < yesRight + pad && noRight > yesLeft - pad && top < yesBottom + pad && noBottom > yesTop - pad;
+      if (!overlaps) break;
+    }
+    valentineCloseBtn.style.transform = "none";
+    valentineCloseBtn.style.left = left + "px";
+    valentineCloseBtn.style.top = top + "px";
+  }
+
+  function openValentinePopup() {
+    valentineOverlayOpen = true;
+    valentineOverlay.classList.add("is-open");
+    valentineOverlay.hidden = false;
+    document.body.style.overflow = "hidden";
+    requestAnimationFrame(() => {
+      valentineCloseBtn.style.left = "";
+      valentineCloseBtn.style.top = "";
+      valentineCloseBtn.style.transform = "";
+      (valentineYesBtn || valentineOverlay.querySelector(".btn--valentine-yes"))?.focus();
+    });
+  }
+
+  function closeValentinePopup() {
+    valentineOverlayOpen = false;
+    valentineOverlay.classList.remove("is-open");
+    valentineOverlay.hidden = true;
+    document.body.style.overflow = overlayOpen ? "hidden" : "";
     try { canvas.focus(); } catch (_) {}
   }
 
@@ -385,12 +475,21 @@
   overlay.addEventListener("click", (e) => {
     if (e.target === overlay) closeOverlay();
   });
+  if (valentineYesBtn) valentineYesBtn.addEventListener("click", (e) => { e.preventDefault(); closeValentinePopup(); });
+  if (valentineCloseBtn) {
+    valentineCloseBtn.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); moveValentineNotYetButton(); });
+    valentineCloseBtn.addEventListener("mouseenter", () => moveValentineNotYetButton());
+  }
+  valentineOverlay.addEventListener("click", (e) => {
+    if (e.target === valentineOverlay) closeValentinePopup();
+  });
   // Esc always closes (capture so it runs before anything else)
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && overlayOpen) {
+    if (e.key === "Escape" && (overlayOpen || valentineOverlayOpen)) {
       e.preventDefault();
       e.stopPropagation();
-      closeOverlay();
+      if (valentineOverlayOpen) closeValentinePopup();
+      else closeOverlay();
     }
   }, true);
 
@@ -407,8 +506,8 @@
   };
 
   window.addEventListener("keydown", (e) => {
-    if (overlayOpen) {
-      if (e.key === "Escape") closeOverlay();
+    if (overlayOpen || valentineOverlayOpen) {
+      if (e.key === "Escape") (valentineOverlayOpen ? closeValentinePopup : closeOverlay)();
       return;
     }
 
@@ -522,9 +621,21 @@
       [-1, 2], [0, 2], [1, 2],
       [0, 3],
     ];
-    const heartColor = isNear ? "#f06070" : "#c83048";
     const base = 3;
     const scale = isNear ? 1 + 0.18 * Math.sin(Date.now() * 0.005) : 1;
+
+    const pulse = 0.15 + 0.12 * Math.sin(Date.now() * 0.002);
+    ctx.save();
+    ctx.globalAlpha = pulse;
+    heartPixels.forEach(([dx, dy]) => {
+      const gx = x + Math.round(dx * base * 1.35);
+      const gy = y + Math.round(dy * base * 1.35);
+      const gs = 4;
+      pxRect(gx - 1, gy - 1, gs, gs, "#e87898");
+    });
+    ctx.restore();
+
+    const heartColor = isNear ? "#f06070" : "#c83048";
     const size = base;
     heartPixels.forEach(([dx, dy]) => {
       const sx = x + Math.round(dx * base * scale);
@@ -583,21 +694,23 @@
 
   const spriteZeecho = new Image();
   const spriteNafeesa = new Image();
-  spriteZeecho.src = "zeecho-pixel.png";
-  spriteNafeesa.src = "nafeesa-pixel.png";
+  const imgVersion = "?v=" + Date.now();
+  spriteZeecho.src = "zeecho-pixel.png" + imgVersion;
+  spriteNafeesa.src = "nafeesa-pixel.png" + imgVersion;
 
   const SPRITE_HEIGHT = 38;
 
-  function drawCharacterSprite(img, x, y, facing, bob) {
+  function drawCharacterSprite(img, x, y, facing, bob, groundOffset, heightMultiplier) {
     if (!img || !img.complete || !img.naturalWidth) return;
     const w = img.naturalWidth;
     const h = img.naturalHeight;
     if (!w || !h) return;
-    const scale = SPRITE_HEIGHT / h;
+    const mult = heightMultiplier || 1;
+    const scale = (SPRITE_HEIGHT * mult) / h;
     const drawW = w * scale;
     const drawH = h * scale;
     const X = px(x);
-    const Y = px(y);
+    const Y = px(y) + (groundOffset || 0);
     ctx.save();
     ctx.translate(X, Y + (bob || 0));
     if (facing && facing.x < -0.1) ctx.scale(-1, 1);
@@ -605,8 +718,82 @@
     ctx.restore();
   }
 
+  // ----- Heart rain (falling hearts on the map) -----
+  const heartRainParticles = [];
+  const HEART_RAIN_MAX = 55;
+  const HEART_RAIN_SPAWN_INTERVAL = 0.12;
+  let heartRainAccum = 0;
+  const smallHeartPixels = [
+    [0, -2], [-1, -2], [1, -2],
+    [-2, -1], [-1, -1], [0, -1], [1, -1], [2, -1],
+    [-2, 0], [-1, 0], [0, 0], [1, 0], [2, 0],
+    [-1, 1], [0, 1], [1, 1],
+    [0, 2],
+  ];
+  function spawnHeartParticle() {
+    const r = () => Math.random();
+    heartRainParticles.push({
+      x: r() * (LOG_W + 20) - 10,
+      y: -8 - r() * 15,
+      vy: 35 + r() * 45,
+      vx: (r() - 0.5) * 12,
+      size: 2,
+      alpha: 0.72 + r() * 0.26,
+      hue: r() < 0.33 ? "#f06080" : r() < 0.66 ? "#e84870" : "#ff88b0",
+      phase: r() * Math.PI * 2,
+    });
+  }
+  function updateHeartRain(dt) {
+    const totalCheckpoints = checkpoints.length;
+    const passedCount = passedCheckpointIds.size;
+    const rainIntensity = totalCheckpoints === 0 ? 0 : passedCount / totalCheckpoints;
+    const maxParticles = Math.round(HEART_RAIN_MAX * rainIntensity);
+    const spawnInterval = passedCount > 0
+      ? HEART_RAIN_SPAWN_INTERVAL * (totalCheckpoints / passedCount)
+      : 999;
+
+    heartRainAccum += dt;
+    while (heartRainAccum >= spawnInterval && heartRainParticles.length < maxParticles) {
+      heartRainAccum -= spawnInterval;
+      spawnHeartParticle();
+    }
+    for (let i = heartRainParticles.length - 1; i >= 0; i--) {
+      const p = heartRainParticles[i];
+      p.y += p.vy * dt;
+      p.x += p.vx * dt;
+      if (p.y > LOG_H + 15) heartRainParticles.splice(i, 1);
+    }
+    if (passedCount === 0 && heartRainParticles.length > maxParticles) {
+      heartRainParticles.splice(maxParticles);
+    }
+  }
+  function drawHeartRain() {
+    const totalCheckpoints = checkpoints.length;
+    const passedCount = passedCheckpointIds.size;
+    const rainIntensity = totalCheckpoints === 0 ? 0 : passedCount / totalCheckpoints;
+    const intensityBoost = 0.5 + rainIntensity;
+    const t = frameNow * 0.003;
+
+    for (let i = 0; i < heartRainParticles.length; i++) {
+      const p = heartRainParticles[i];
+      const s = p.size | 0;
+      const x0 = Math.round(p.x);
+      const y0 = Math.round(p.y);
+      const alpha = Math.min(1, p.alpha * intensityBoost * (0.92 + 0.08 * Math.sin(t + (p.phase || 0))));
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = p.hue;
+      for (let k = 0; k < smallHeartPixels.length; k++) {
+        const dx = smallHeartPixels[k][0];
+        const dy = smallHeartPixels[k][1];
+        ctx.fillRect(x0 + dx * s, y0 + dy * s, s, s);
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
   // ----- Game loop -----
   let last = performance.now();
+  let frameNow = last;
 
   function update(dt) {
     // Up / W = forward along path, Down / S = backward. Path turns under you.
@@ -638,11 +825,20 @@
     const near = best && bestD < 18;
     nearestCheckpoint = near ? best : null;
 
+    for (const cp of checkpoints) {
+      if (player.s >= cp.s) passedCheckpointIds.add(cp.id);
+      else passedCheckpointIds.delete(cp.id);
+    }
+
     if (controls.interact && nearestCheckpoint && !overlayOpen) {
       // prevent repeated opens while key held
       controls.interact = false;
       openCheckpoint(nearestCheckpoint);
     }
+
+    const atEnd = player.s >= totalLen - 3;
+    if (atEnd && !wasAtEndLastFrame && !valentineOverlayOpen) openValentinePopup();
+    wasAtEndLastFrame = atEnd;
   }
 
   function render() {
@@ -687,7 +883,7 @@
     const tan = tangentAtS(player.s);
     const nx = -tan.y;
     const ny = tan.x;
-    const sep = 4;
+    const sep = 7;
     const phase = player.walkT % 1;
     const bob = 1.5 * Math.sin(player.bob);
 
@@ -697,9 +893,21 @@
     const second = zeechoPos.y < nafeesaPos.y ? { pos: nafeesaPos, who: "nafeesa" } : { pos: zeechoPos, who: "zeecho" };
 
     const useSprites = spriteZeecho.complete && spriteNafeesa.complete && spriteZeecho.naturalWidth > 0 && spriteNafeesa.naturalWidth > 0;
+    const nafeesaGroundOffset = 6;
+    const nafeesaHeightMult = 1.07;
     if (useSprites) {
-      drawCharacterSprite(first.who === "zeecho" ? spriteZeecho : spriteNafeesa, first.pos.x, first.pos.y, player.facing, bob);
-      drawCharacterSprite(second.who === "zeecho" ? spriteZeecho : spriteNafeesa, second.pos.x, second.pos.y, player.facing, bob);
+      drawCharacterSprite(
+        first.who === "zeecho" ? spriteZeecho : spriteNafeesa,
+        first.pos.x, first.pos.y, player.facing, bob,
+        first.who === "nafeesa" ? nafeesaGroundOffset : 0,
+        first.who === "nafeesa" ? nafeesaHeightMult : 1
+      );
+      drawCharacterSprite(
+        second.who === "zeecho" ? spriteZeecho : spriteNafeesa,
+        second.pos.x, second.pos.y, player.facing, bob,
+        second.who === "nafeesa" ? nafeesaGroundOffset : 0,
+        second.who === "nafeesa" ? nafeesaHeightMult : 1
+      );
     } else {
       const firstPal = first.who === "zeecho" ? palettes.a : palettes.b;
       const secondPal = second.who === "zeecho" ? palettes.a : palettes.b;
@@ -710,6 +918,8 @@
     if (nearestCheckpoint && !overlayOpen) {
       drawSpeechBubble(p.x, p.y - 44, "Press E");
     }
+
+    drawHeartRain();
 
     const vig = ctx.createRadialGradient(
       LOG_W / 2, LOG_H / 2, 40,
@@ -726,7 +936,9 @@
   function frame(now) {
     const dt = clamp((now - last) / 1000, 0, 0.05);
     last = now;
-    if (!overlayOpen) update(dt);
+    frameNow = now;
+    updateHeartRain(dt);
+    if (!overlayOpen && !valentineOverlayOpen) update(dt);
     render();
     requestAnimationFrame(frame);
   }
@@ -736,7 +948,7 @@
 
   // Accessibility: allow Esc to close overlay even if focus is inside
   window.addEventListener("keydown", (e) => {
-    if (overlayOpen && e.key === "Escape") closeOverlay();
+    if (e.key === "Escape" && (overlayOpen || valentineOverlayOpen)) (valentineOverlayOpen ? closeValentinePopup : closeOverlay)();
   });
 })();
 

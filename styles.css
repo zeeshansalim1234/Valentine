@@ -112,29 +112,51 @@ kbd {
   border: 1px solid var(--border);
 }
 
-/* Checkpoint overlay modal — pixel style */
+/* Checkpoint overlay modal — Valentine pixel style */
 .overlay {
   position: fixed;
   inset: 0;
   z-index: 1000;
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba(40, 20, 35, 0.88);
   display: none;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  padding: 12px;
 }
 .overlay.is-open { display: flex; }
 
 .modal--pixel {
-  width: min(1000px, 96vw);
+  width: min(1200px, 94vw);
   max-width: none;
-  max-height: 94vh;
-  overflow: auto;
+  max-height: min(92vh, calc(100vh - 24px));
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   font-family: "Press Start 2P", cursive;
+}
+.modal--pixel .modal__pixel-border {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.modal--pixel .modal__header {
+  flex-shrink: 0;
+}
+.modal--pixel .modal__body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.modal--pixel .modal__footer {
+  flex-shrink: 0;
 }
 
 .modal__pixel-border {
-  background: #1e1a2a;
+  background: #2a1828;
   border: 4px solid #3d3548;
   box-shadow:
     inset 0 0 0 2px #2a2438,
@@ -143,28 +165,49 @@ kbd {
     0 14px 24px rgba(0, 0, 0, 0.6);
   padding: 4px;
 }
+.modal__valentine {
+  background: linear-gradient(180deg, #3d2438 0%, #2a1828 50%, #221520 100%);
+  border: 4px solid #b85878;
+  box-shadow:
+    inset 0 0 0 2px rgba(232, 120, 154, 0.25),
+    0 0 0 4px #1a0f18,
+    0 0 20px rgba(200, 80, 120, 0.2),
+    0 12px 0 0 #8a4058,
+    0 14px 28px rgba(0, 0, 0, 0.5);
+}
 
 .modal__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 24px 28px;
-  background: #2a2438;
-  border-bottom: 4px solid #3d3548;
+  gap: 10px;
+  padding: 14px 18px;
+  background: linear-gradient(180deg, #4a2845 0%, #3d2038 100%);
+  border-bottom: 4px solid #b85878;
+}
+.modal__valentine .modal__header {
+  border-bottom-color: #c86888;
+  box-shadow: 0 4px 0 0 #8a4058;
 }
 .modal__heart {
-  color: #e07898;
+  color: #ff88a8;
   font-size: 1.5rem;
   line-height: 1;
+  text-shadow: 0 0 8px rgba(255, 136, 168, 0.6);
 }
 .modal__title {
-  font-size: 0.8rem;
+  font-size: 1.35rem;
   font-weight: 400;
-  color: #e8e4f0;
-  letter-spacing: 0.1em;
+  color: #ffe8f0;
+  letter-spacing: 0.08em;
   flex: 1;
   text-align: center;
+  text-shadow: 0 0 12px rgba(255, 200, 220, 0.5);
+  line-height: 1.3;
+}
+.modal__valentine .modal__title {
+  color: #ffd0e0;
+  text-shadow: 0 0 14px rgba(255, 136, 168, 0.6);
 }
 .iconBtn--pixel {
   font-family: "Press Start 2P", cursive;
@@ -182,18 +225,33 @@ kbd {
   transition: background 0.1s, color 0.1s;
   box-shadow: inset 0 -2px 0 #0f0d14;
 }
+.modal__valentine .iconBtn--pixel {
+  border-color: #a84868;
+  background: #3d2038;
+  color: #ffd0e0;
+  box-shadow: inset 0 -2px 0 #5a2845;
+}
 .iconBtn--pixel:hover {
   background: #3d3548;
   color: #fff;
 }
+.modal__valentine .iconBtn--pixel:hover {
+  background: #b85878;
+  border-color: #c86888;
+  color: #fff;
+}
 
-.modal__body { padding: 28px 32px; }
+.modal__body { padding: 16px 20px; }
+.modal__valentine .modal__body {
+  background: linear-gradient(180deg, #2a1825 0%, #221518 100%);
+}
 .checkpointMeta {
+  flex-shrink: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 14px;
+  gap: 10px;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: 12px;
 }
 .checkpointMeta__date {
   font-size: 0.6rem;
@@ -202,6 +260,11 @@ kbd {
   border-radius: 0;
   background: #252035;
   border: 3px solid #3d3548;
+}
+.modal__valentine .checkpointMeta__date {
+  color: #e8c8d8;
+  background: #3d2438;
+  border-color: #8a5068;
 }
 .checkpointMeta__tag {
   font-size: 0.6rem;
@@ -212,54 +275,148 @@ kbd {
   border: 3px solid #c89848;
   box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.2);
 }
+.modal__valentine .checkpointMeta__tag {
+  background: linear-gradient(180deg, #ff88a8 0%, #d85878 100%);
+  border-color: #b84868;
+  color: #fff;
+  box-shadow: inset 0 -2px 0 #8a4058;
+}
 .checkpointCard {
+  flex: 1;
+  min-height: 0;
   display: grid;
-  grid-template-columns: 1fr 1.3fr;
-  gap: 24px;
-  min-height: 280px;
+  /* Image | Text (text a bit wider) */
+  grid-template-columns: 1.2fr 1.6fr;
+  grid-template-rows: minmax(0, 1fr);
+  gap: 8px;
+  align-items: stretch;
 }
 .checkpointCard__imgWrap {
   border-radius: 0;
   overflow: hidden;
   border: 4px solid #3d3548;
-  background: #0f0d14;
-  aspect-ratio: 4 / 3;
-  min-height: 220px;
+  background: #1e1a28;
+  min-width: 0;
+  min-height: 0;
+  max-height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   box-shadow: inset 0 0 0 2px #2a2438;
 }
+.modal__valentine .checkpointCard__imgWrap {
+  border-color: #a85878;
+  background: #2a1825;
+  box-shadow: inset 0 0 0 2px #3d2845, 0 0 12px rgba(200, 80, 120, 0.15);
+}
+.checkpointCarousel {
+  position: relative;
+}
+.carouselBtn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  width: 44px;
+  height: 44px;
+  border: 3px solid #a85878;
+  background: rgba(42, 24, 40, 0.9);
+  color: #ffd0e0;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+.carouselBtn:hover {
+  background: #b85878;
+  color: #fff;
+}
+.carouselBtn--prev { left: 8px; }
+.carouselBtn--next { right: 8px; }
+.checkpointCarousel.carouselSingle .carouselBtn,
+.checkpointCarousel.carouselSingle .carouselDots {
+  display: none;
+}
+.carouselDots {
+  position: absolute;
+  bottom: 10px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  z-index: 2;
+}
+.carouselDots__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid #a85878;
+  background: rgba(42, 24, 40, 0.7);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.carouselDots__dot:hover { background: rgba(184, 88, 120, 0.5); }
+.carouselDots__dot.is-active { background: #e87898; }
 .checkpointCard__imgWrap img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center;
   image-rendering: auto;
 }
 .checkpointCard__text {
+  min-height: 0;
+  min-width: 0;
+  height: 100%;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
   border: 4px solid #3d3548;
   border-radius: 0;
   background: #252035;
-  padding: 22px;
+  padding: 14px 18px;
   color: #b8b0d0;
-  font-size: 0.6rem;
-  line-height: 2;
+  font-size: 0.55rem;
+  line-height: 1.9;
   box-shadow: inset 0 0 0 2px #1e1a2a;
+  align-self: stretch;
 }
-.checkpointCard__text p { margin: 0; }
+.checkpointCard__text p {
+  margin: 0;
+  flex: 1;
+  min-height: 0;
+}
+.modal__valentine .checkpointCard__text {
+  border-color: #8a5068;
+  background: #2a1825;
+  color: #e8c8d8;
+  box-shadow: inset 0 0 0 2px #1a0f18;
+}
 
 .modal__footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
-  padding: 24px 28px;
+  gap: 16px;
+  padding: 14px 18px;
   background: #2a2438;
   border-top: 4px solid #3d3548;
+}
+.modal__valentine .modal__footer {
+  background: linear-gradient(0deg, #4a2845 0%, #3d2038 100%);
+  border-top-color: #b85878;
+  box-shadow: 0 -4px 0 0 #8a4058;
 }
 .modal__hint {
   font-size: 0.55rem;
   color: #787090;
+}
+.modal__valentine .modal__hint {
+  color: #c898a8;
 }
 .btn--pixel {
   font-family: "Press Start 2P", cursive;
@@ -272,16 +429,105 @@ kbd {
   box-shadow: inset 0 -3px 0 #8a4058, 0 4px 0 #0f0d14;
   transition: transform 0.1s, box-shadow 0.1s;
 }
+.modal__valentine .btn--pixel {
+  border-color: #d86888;
+  background: linear-gradient(180deg, #e87898 0%, #c85878 100%);
+  box-shadow: inset 0 -3px 0 #8a4058, 0 4px 0 #5a2845;
+}
 .btn--pixel:hover {
   background: #c86888;
+  color: #fff;
+}
+.modal__valentine .btn--pixel:hover {
+  background: linear-gradient(180deg, #ff88a8 0%, #d86888 100%);
 }
 .btn--pixel:active {
   transform: translateY(2px);
   box-shadow: inset 0 -1px 0 #8a4058, 0 2px 0 #0f0d14;
 }
+.modal__valentine .btn--pixel:active {
+  box-shadow: inset 0 -1px 0 #8a4058, 0 2px 0 #5a2845;
+}
 
+/* Valentine ask popup (end of path) */
+.valentine-overlay {
+  display: none;
+}
+.valentine-overlay.is-open {
+  display: flex;
+}
+.modal--valentine-ask {
+  max-width: 640px;
+  min-width: 420px;
+}
+.modal__header--centered {
+  justify-content: center;
+  gap: 16px;
+}
+.modal__title--big {
+  font-size: 0.65rem;
+  line-height: 1.6;
+  padding: 0 12px;
+}
+.modal__body--valentine-ask {
+  padding: 32px 40px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  justify-content: center;
+  align-items: center;
+}
+.valentine-tip {
+  font-size: 0.8rem;
+  color: #c898a8;
+  background: rgba(61, 36, 56, 0.55);
+  border: 2px solid rgba(200, 104, 136, 0.55);
+  padding: 12px 16px;
+  white-space: nowrap;
+  line-height: 1.6;
+  text-shadow: 0 0 8px rgba(255, 136, 168, 0.35);
+}
+.valentine-tip__emoji {
+  font-size: 1.5em;
+  vertical-align: middle;
+}
+.valentine-play-area {
+  position: relative;
+  width: 320px;
+  height: 160px;
+  margin: 0 auto;
+}
+.valentine-play-area .btn--valentine-yes {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(calc(-100% - 8px), -50%);
+}
+.valentine-play-area .btn--valentine-close {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(8px, -50%);
+  transition: left 0.15s ease-out, top 0.15s ease-out;
+}
+.btn--valentine-yes,
+.btn--valentine-close {
+  font-size: 0.7rem;
+  padding: 12px 24px;
+  min-width: 120px;
+  text-shadow: 0 0 8px rgba(255, 136, 168, 0.6);
+}
+.btn--valentine-close {
+  background: linear-gradient(180deg, #4a2845 0%, #3d2038 100%);
+  border-color: #8a6078;
+  color: #ffd0e0;
+}
+.btn--valentine-close:hover {
+  background: linear-gradient(180deg, #5a3855 0%, #4a2845 100%);
+}
 @media (max-width: 640px) {
+  .modal__title--big { font-size: 0.5rem; }
   .checkpointCard { grid-template-columns: 1fr; }
-  .modal__title { font-size: 0.55rem; }
+  .modal__title { font-size: 1rem; }
   .legend { flex-direction: column; align-items: flex-start; }
 }
