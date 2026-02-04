@@ -18,6 +18,7 @@
   const cpCarouselNext = document.getElementById("cpCarouselNext");
   const cpCarouselDots = document.getElementById("cpCarouselDots");
   const cpCarouselWrap = document.querySelector(".checkpointCarousel");
+  const cpCard = document.querySelector(".checkpointCard");
   const modalTitle = document.getElementById("modalTitle");
   const musicBtn = document.getElementById("musicBtn");
   const valentineOverlay = document.getElementById("valentineOverlay");
@@ -70,12 +71,22 @@
   const TWO_PI = Math.PI * 2;
   for (let i = 0; i <= PATH_SAMPLES; i++) {
     const t = i / PATH_SAMPLES;
-    const x = 45 + 390 * t;
+    let x = 45 + 390 * t;
     const y =
       135 +
       55 * Math.sin(t * TWO_PI * 2.3) +
       38 * Math.sin(t * TWO_PI * 3.7) +
       22 * Math.sin(t * TWO_PI * 5.1);
+
+    // Gently bend the path left around where cp5 sits so there’s
+    // a bit of free space on the right side of the map for an image asset.
+    const bendCenter = 0.6;    // around cp5 (~58% along the path)
+    const bendWidth = 0.18;    // how wide the bend region is
+    const dx = Math.abs(t - bendCenter) / bendWidth;
+    if (dx < 1) {
+      const strength = (1 - dx) * (1 - dx); // smooth falloff
+      x -= 42 * strength; // shift path left up to ~42px at the center
+    }
     pathPts.push({
       x: Math.max(20, Math.min(LOG_W - 20, x)),
       y: Math.max(28, Math.min(LOG_H - 28, y)),
@@ -139,14 +150,23 @@
   // Each checkpoint uses "s" (distance along path).
   const loremIpsum = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
   const checkpoints = [
-    { id: "cp-1", title: "Beach", date: "Oct 29 2025", tag: "Memory", text: loremIpsum, images: ["./photos/beach.jpeg"], s: totalLen * 0.10 },
-    { id: "cp-2", title: "Bowen", date: "Nov 2 2025", tag: "Memory", text: loremIpsum, images: ["./photos/bowen.jpeg"], s: totalLen * 0.22 },
-    { id: "cp-3", title: "Cook", date: "Nov 8 2025", tag: "Memory", text: loremIpsum, images: ["./photos/cook.jpeg"], s: totalLen * 0.34 },
-    { id: "cp-4", title: "Airport", date: "Dec 11 2025", tag: "Memory", text: loremIpsum, images: ["./photos/airport.jpeg"], s: totalLen * 0.46 },
-    { id: "cp-5", title: "Getaway", date: "Dec 25 2025", tag: "Memory", text: loremIpsum, images: ["./photos/getaway.jpeg", "./photos/getaway2.jpeg"], s: totalLen * 0.58 },
-    { id: "cp-6", title: "Christmas", date: "Dec 26 2025", tag: "Memory", text: loremIpsum, images: ["./photos/christmas0.jpeg", "./photos/christmas.jpeg"], s: totalLen * 0.70 },
-    { id: "cp-7", title: "New Year", date: "Dec 31 2025", tag: "Memory", text: loremIpsum, images: ["./photos/newyear.jpeg", "./photos/newyear2.jpeg"], s: totalLen * 0.82 },
-    { id: "cp-8", title: "Adventures", date: "Jan 2026", tag: "Memory", text: loremIpsum, images: ["./photos/zipline.jpeg", "./photos/hiking.jpeg", "./photos/skiing.jpeg", "./photos/skating.jpeg", "./photos/wallclimbing.jpeg"], s: totalLen * 0.92 },
+    { id: "cp-1", title: "The Day I Fell in Love", date: "Oct 29 2025", tag: "Sunset Beach", text: loremIpsum, images: ["./photos/beach.jpeg"], s: totalLen * 0.10 },
+    { id: "cp-2", title: "The Most Memorable Day of My Life (So Far)", date: "Nov 2 2025", tag: "Bowen Island", text: loremIpsum, images: ["./photos/bowen.jpeg"], s: totalLen * 0.22 },
+    { id: "cp-3", title: "👩‍🍳Our First Cooking Sesh👨‍🍳", date: "Nov 8 2025", tag: "Home", text: loremIpsum, images: ["./photos/cook.jpeg"], s: totalLen * 0.34 },
+    { id: "cp-4", title: "The First Time We Had to Say Goodbye 😢", date: "Dec 11 2025", tag: "YVR Airport", text: loremIpsum, images: ["./photos/airport.jpeg"], s: totalLen * 0.46 },
+    { id: "cp-5", title: "Our First Getaway", date: "Dec 25 2025", tag: "Sunshine Coast", text: loremIpsum, images: ["./photos/getaway.jpeg", "./photos/getaway2.jpeg"], s: totalLen * 0.58 },
+    { id: "cp-6", title: "Our First Christmas Together", date: "Dec 26 2025", tag: "Capilano", text: loremIpsum, images: ["./photos/christmas0.jpeg", "./photos/christmas.jpeg"], s: totalLen * 0.70 },
+    { id: "cp-7", title: "Our First New Year Together", date: "Dec 31 2025", tag: "Porteau Cove", text: loremIpsum, images: ["./photos/newyear.jpeg", "./photos/newyear2.jpeg"], s: totalLen * 0.82 },
+    {
+      id: "cp-8",
+      title: "Our Adventures",
+      date: "Jan 2026",
+      tag: "Whistler",
+      imageTags: ["Whistler", "Cypress Mt", "Seymour Mt", "Robson", "Hive"],
+      text: loremIpsum,
+      images: ["./photos/zipline.jpeg", "./photos/hiking.jpeg", "./photos/skiing.jpeg", "./photos/skating.jpeg", "./photos/wallclimbing.jpeg"],
+      s: totalLen * 0.92,
+    },
   ].map((cp) => ({ ...cp, pos: posAtS(cp.s) }));
 
   // ----- Tile map (modern pixel look) -----
@@ -328,10 +348,21 @@
   function openCheckpoint(cp) {
     overlayOpen = true;
     nearestCheckpoint = cp;
-    modalTitle.textContent = cp.title || "Checkpoint";
+    if (cp.title) {
+      // Allow slightly larger emoji in titles like cp-3
+      const safeTitle = cp.title.replace(/👩‍🍳👨‍🍳/g, '<span class="modalTitleEmoji">👩‍🍳👨‍🍳</span>');
+      modalTitle.innerHTML = safeTitle;
+    } else {
+      modalTitle.textContent = "Checkpoint";
+    }
     cpDate.textContent = cp.date || "";
     cpTag.textContent = cp.tag || "Memory";
     cpText.textContent = cp.text || "";
+
+    // For checkpoint 2 only, make the text column even wider
+    if (cpCard) {
+      cpCard.classList.toggle("checkpointCard--wideText", cp.id === "cp-2");
+    }
 
     const images = cp.images && cp.images.length ? cp.images : (cp.imageSrc ? [cp.imageSrc] : []);
     let carouselIndex = 0;
@@ -348,6 +379,9 @@
       carouselIndex = (i + images.length) % images.length;
       cpImg.src = images[carouselIndex];
       cpImg.alt = `${cp.title || "Checkpoint"} photo ${carouselIndex + 1} of ${images.length}`;
+      if (cp.id === "cp-8" && Array.isArray(cp.imageTags) && cp.imageTags.length >= images.length) {
+        cpTag.textContent = cp.imageTags[carouselIndex] || cp.tag || "Memory";
+      }
       if (cpCarouselDots) {
         const dots = cpCarouselDots.querySelectorAll(".carouselDots__dot");
         dots.forEach((d, k) => d.classList.toggle("is-active", k === carouselIndex));
@@ -357,6 +391,9 @@
     if (images.length > 0) {
       cpImg.src = images[0];
       cpImg.alt = `${cp.title || "Checkpoint"} photo 1 of ${images.length}`;
+      if (cp.id === "cp-8" && Array.isArray(cp.imageTags) && cp.imageTags.length >= images.length) {
+        cpTag.textContent = cp.imageTags[0] || cp.tag || "Memory";
+      }
       if (cpCarouselWrap) {
         if (images.length > 1) {
           cpCarouselWrap.classList.remove("carouselSingle");
@@ -609,6 +646,57 @@
     ctx.fillText(label, X, Y - h - 8 + h / 2);
   }
 
+  function drawTreesCafeMarker() {
+    if (!treesCafeImg.complete || !treesCafeImg.naturalWidth) return;
+    // Place the cafe a little bit along the path, near the start
+    const startSpot = posAtS(totalLen * 0.04);
+    const baseW = 80;
+    const scale = baseW / treesCafeImg.naturalWidth;
+    const w = baseW;
+    const h = treesCafeImg.naturalHeight * scale;
+    const cx = startSpot.x;
+    const cy = startSpot.y;
+    // Draw the cafe image centered just above the path near the start
+    ctx.drawImage(treesCafeImg, cx - w / 2, cy - h - 18, w, h);
+    // Draw the Oct 2025 banner just to the upper‑right of Trees Cafe
+    const cafeTopY = cy - h - 18;
+    const signX = cx + w / 2 + 6;  // closer horizontally
+    const signY = cafeTopY + 25   // a bit lower, closer to the photo
+    drawSign(signX, signY, "Oct 2025");
+  }
+
+  function drawTentMarker() {
+    if (!tentImg.complete || !tentImg.naturalWidth) return;
+    const cp5 = checkpoints.find((c) => c.id === "cp-5");
+    if (!cp5 || !cp5.pos) return;
+    const base = cp5.pos;
+    const baseW = 72;
+    const scale = baseW / tentImg.naturalWidth;
+    const w = baseW;
+    const h = tentImg.naturalHeight * scale;
+    const offsetX = 50; // to the right of cp5
+    const offsetY = 50; // a bit lower so it doesn't overlap the path
+    const cx = base.x + offsetX;
+    const cy = base.y + offsetY;
+    ctx.drawImage(tentImg, cx - w / 2, cy - h, w, h);
+  }
+
+  function drawPlaneMarker() {
+    if (!planeImg.complete || !planeImg.naturalWidth) return;
+    const cp4 = checkpoints.find((c) => c.id === "cp-4");
+    if (!cp4 || !cp4.pos) return;
+    const base = cp4.pos;
+    const baseW = 72;
+    const scale = baseW / planeImg.naturalWidth;
+    const w = baseW;
+    const h = planeImg.naturalHeight * scale;
+    const offsetX = -50; // to the left of cp4
+    const offsetY = 70;
+    const cx = base.x + offsetX;
+    const cy = base.y + offsetY;
+    ctx.drawImage(planeImg, cx - w / 2, cy - h, w, h);
+  }
+
   function drawCheckpoint(cp, isNear) {
     const x = px(cp.pos.x);
     const y = px(cp.pos.y);
@@ -694,9 +782,15 @@
 
   const spriteZeecho = new Image();
   const spriteNafeesa = new Image();
+  const treesCafeImg = new Image();
+  const tentImg = new Image();
+  const planeImg = new Image();
   const imgVersion = "?v=" + Date.now();
   spriteZeecho.src = "zeecho-pixel.png" + imgVersion;
   spriteNafeesa.src = "nafeesa-pixel.png" + imgVersion;
+  treesCafeImg.src = "trees-cafe.png" + imgVersion;
+  tentImg.src = "photos/tent.png" + imgVersion;
+  planeImg.src = "plane.png" + imgVersion;
 
   const SPRITE_HEIGHT = 38;
 
@@ -812,7 +906,21 @@
     }
 
     // Find nearest checkpoint for prompt
-    const p = posAtS(player.s);
+    // For the very start of the journey, have them walk in from the top of the map
+    // toward Trees Café, then continue along the path.
+    const meetS = totalLen * 0.04;
+    let p;
+    if (player.s <= meetS) {
+      const treesPos = posAtS(meetS);
+      const spawnPos = { x: treesPos.x, y: 30 }; // high near the top of the map
+      const tMeet = clamp(player.s / meetS, 0, 1);
+      p = {
+        x: lerp(spawnPos.x, treesPos.x, tMeet),
+        y: lerp(spawnPos.y, treesPos.y, tMeet),
+      };
+    } else {
+      p = posAtS(player.s);
+    }
     let best = null;
     let bestD = Infinity;
     for (const cp of checkpoints) {
@@ -871,7 +979,10 @@
       drawPathFlower(pos.x + nx * off, pos.y + ny * off, i % 2);
       drawPathFlower(pos.x - nx * (off + 6), pos.y - ny * (off + 6), (i + 1) % 2);
     }
-    drawSign(pathPts[0].x - 8, pathPts[0].y - 14, "Oct 2025");
+    // Draw the Trees Cafe photo + Oct 2025 banner at the very start of the path
+    drawTreesCafeMarker();
+    drawTentMarker();
+    drawPlaneMarker();
     drawSign(pathPts[pathPts.length - 1].x + 8, pathPts[pathPts.length - 1].y - 14, "Feb 2026");
 
     const p = posAtS(player.s);
@@ -883,7 +994,13 @@
     const tan = tangentAtS(player.s);
     const nx = -tan.y;
     const ny = tan.x;
-    const sep = 7;
+    // Start far apart, come closer as you move toward the early part of the path
+    const farSep = 22;
+    const closeSep = 7;
+    const approachEnd = totalLen * 0.12; // roughly around the first checkpoint / Oct 2025 area
+    const approachT = clamp(player.s / approachEnd, 0, 1);
+    const sep = farSep + (closeSep - farSep) * approachT;
+
     const phase = player.walkT % 1;
     const bob = 1.5 * Math.sin(player.bob);
 
