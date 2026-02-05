@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Our Valentine Journey</title>
+    <title>Our Journey So Far</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -18,16 +18,14 @@
     </main>
 
     <header class="hud">
-      <div class="hud__left">
-        <div class="title">Our Valentine Journey</div>
-        <div class="subtitle">Up / Down to walk along the path · Press <kbd>E</kbd> near a checkpoint</div>
-      </div>
-      <button id="musicBtn" class="btn" type="button" aria-pressed="true">Music: On</button>
+      <button id="musicBtn" class="btn btn--music" type="button" aria-pressed="true">Music: On</button>
     </header>
 
-    <div class="legend">
-      <span class="chip chip--path"></span><span>Path</span>
-      <span class="chip chip--checkpoint"></span><span>Checkpoint</span>
+    <div id="journeyBanner" class="hud__banner hud__banner--bottom" aria-hidden="true">
+      <div class="hud__banner-rod"></div>
+      <div class="hud__banner-body">
+        <h1 id="journeyBannerTitle" class="hud__title">Our Journey So Far</h1>
+      </div>
     </div>
 
     <div id="overlay" class="overlay" hidden>
@@ -68,11 +66,11 @@
     </div>
 
     <div id="valentineOverlay" class="overlay valentine-overlay" hidden aria-labelledby="valentineTitle">
-      <div class="modal modal--pixel modal--valentine-ask" role="dialog" aria-modal="true">
+      <div id="valentineAskModal" class="modal modal--pixel modal--valentine-ask" role="dialog" aria-modal="true">
         <div class="modal__pixel-border modal__valentine">
           <div class="modal__header modal__header--centered">
             <span class="modal__heart" aria-hidden="true">♥</span>
-            <h2 class="modal__title modal__title--big" id="valentineTitle">WILL YOU BE MY VALENTINE?</h2>
+            <h2 class="modal__title modal__title--big" id="valentineTitle">Ms Nafeesa, will you be my valentine?</h2>
             <span class="modal__heart" aria-hidden="true">♥</span>
           </div>
           <div class="modal__body modal__body--valentine-ask">
@@ -81,6 +79,38 @@
               <button id="valentineCloseBtn" class="btn btn--pixel btn--valentine-close" type="button">No</button>
             </div>
             <div class="valentine-tip">Tip: The No button is a bit shy like me <span class="valentine-tip__emoji">🙃</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal modal--pixel modal--valentine-ask" id="valentineRightModal" role="dialog" aria-modal="true" hidden>
+        <div class="modal__pixel-border modal__valentine">
+          <div class="modal__header modal__header--centered">
+            <div class="modal__title modal__title--big">Right choice!!</div>
+          </div>
+          <div class="modal__body modal__body--valentine-ask">
+            <p class="valentine-right-text">
+              Not surprised though, you already proved that you tend to make the right choices when you decided to date me <span class="valentine-right-emoji">😪</span>
+            </p>
+          </div>
+          <div class="modal__footer modal__footer--center">
+            <button id="valentineRightOkBtn" class="btn btn--pixel btn--valentine-yes" type="button">Next Stop: Victoria</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="islandEndOverlay" class="overlay" hidden aria-labelledby="islandEndTitle">
+      <div class="modal modal--pixel modal--valentine-ask" role="dialog" aria-modal="true">
+        <div class="modal__pixel-border modal__valentine">
+          <div class="modal__header modal__header--centered">
+            <h2 class="modal__title modal__title--big" id="islandEndTitle">❤️❤️❤️❤️ I love you soo much Nafu ❤️❤️❤️❤️</h2>
+          </div>
+          <div class="modal__body modal__body--valentine-ask">
+            <p class="island-end-text">Can't wait to spend Valentines with you!!!!!!!</p>
+          </div>
+          <div class="modal__footer modal__footer--center">
+            <button id="islandEndOkBtn" class="btn btn--pixel btn--valentine-yes" type="button">♥</button>
           </div>
         </div>
       </div>

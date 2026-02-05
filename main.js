@@ -3,6 +3,9 @@
 // Arrow keys: walk along path. E: reveal checkpoint.
 
 (() => {
+  // Bump this when you replace photos so browsers load the new image (e.g. after updating skating.jpeg)
+  const IMAGE_CACHE_BUST = "?v=2";
+
   /** @type {HTMLCanvasElement} */
   const canvas = document.getElementById("game");
   const ctx = canvas.getContext("2d", { alpha: false });
@@ -22,9 +25,16 @@
   const modalTitle = document.getElementById("modalTitle");
   const musicBtn = document.getElementById("musicBtn");
   const valentineOverlay = document.getElementById("valentineOverlay");
+  const valentineAskModal = document.getElementById("valentineAskModal");
   const valentineYesBtn = document.getElementById("valentineYesBtn");
   const valentineCloseBtn = document.getElementById("valentineCloseBtn");
   const valentinePlayArea = document.getElementById("valentinePlayArea");
+  const valentineRightModal = document.getElementById("valentineRightModal");
+  const valentineRightOkBtn = document.getElementById("valentineRightOkBtn");
+  const journeyBanner = document.getElementById("journeyBanner");
+  const journeyBannerTitle = document.getElementById("journeyBannerTitle");
+  const islandEndOverlay = document.getElementById("islandEndOverlay");
+  const islandEndOkBtn = document.getElementById("islandEndOkBtn");
 
   // Pixel-art resolution (scaled to fill window; crisp pixels)
   const LOG_W = 480;
@@ -32,6 +42,17 @@
   const TILE = 8;
   const COLS = Math.floor(LOG_W / TILE);
   const ROWS = Math.floor(LOG_H / TILE);
+  // Second-map island layout (ellipse)
+  const ISLAND_CENTER_X = LOG_W / 2;
+  const ISLAND_CENTER_Y = LOG_H * 0.62;
+  const ISLAND_HALF_W = LOG_W * 0.33; // wider island
+  const ISLAND_HALF_H = LOG_H * 0.24; // taller island
+  // Simple path across the island from the left edge to the resort on the right
+  const ISLAND_PATH_START_X = ISLAND_CENTER_X - ISLAND_HALF_W * 0.98;
+  const ISLAND_PATH_START_Y = ISLAND_CENTER_Y + ISLAND_HALF_H * 0.02;
+  const ISLAND_RESORT_X = ISLAND_CENTER_X + ISLAND_HALF_W * 0.58;
+  const ISLAND_RESORT_Y = ISLAND_CENTER_Y - ISLAND_HALF_H * 0.2;
+  const ISLAND_PATH_DOOR_OFFSET = 50;
 
   // Romantic pixel palette (soft greens, pinks, roses)
   const COLORS = {
@@ -103,6 +124,14 @@
     return Math.max(lo, Math.min(hi, v));
   }
 
+  function isOnIsland(x, y) {
+    const dx = (x - ISLAND_CENTER_X) / ISLAND_HALF_W;
+    const dy = (y - ISLAND_CENTER_Y) / ISLAND_HALF_H;
+    const r2 = dx * dx + dy * dy;
+    // Matches the edge where tiles switch to water in the second map
+    return r2 <= 1.15;
+  }
+
   function lerp(a, b, t) {
     return a + (b - a) * t;
   }
@@ -111,7 +140,7 @@
     return { x: lerp(a.x, b.x, t), y: lerp(a.y, b.y, t) };
   }
 
-  /** Build cumulative lengths for the polyline */
+  /** Build cumulative lengths for the main map polyline */
   const segLens = [];
   const cum = [0];
   let totalLen = 0;
@@ -145,25 +174,101 @@
     return { x: dx / len, y: dy / len, segIndex: i };
   }
 
+  // ----- Island path (1D path on second map) -----
+  const ISLAND_PATH_SAMPLES = 70;
+  const islandPathPts = [];
+  let islandTotalLen = 0;
+  const islandSegLens = [];
+  const islandCum = [0];
+
+  const islandStart = { x: ISLAND_PATH_START_X, y: ISLAND_PATH_START_Y };
+  const islandEnd = { x: ISLAND_RESORT_X - ISLAND_PATH_DOOR_OFFSET, y: ISLAND_RESORT_Y };
+  const dipY = Math.max(islandStart.y, islandEnd.y) + ISLAND_HALF_H * 0.55;
+  const islandControl = {
+    x: islandStart.x + (islandEnd.x - islandStart.x) * 0.4,
+    y: dipY,
+  };
+  const ISLAND_PATH_T_MAX = 0.9;
+  for (let i = 0; i <= ISLAND_PATH_SAMPLES; i++) {
+    const tNorm = i / ISLAND_PATH_SAMPLES;
+    const t = tNorm * ISLAND_PATH_T_MAX;
+    const oneMinusT = 1 - t;
+    const b = oneMinusT * oneMinusT;
+    const c = 2 * oneMinusT * t;
+    const d = t * t;
+    const base = {
+      x: b * islandStart.x + c * islandControl.x + d * islandEnd.x,
+      y: b * islandStart.y + c * islandControl.y + d * islandEnd.y,
+    };
+    const T = tNorm * TWO_PI;
+    const wobbleX = 10 * Math.sin(T * 1.2) + 5 * Math.sin(T * 2.1 + 0.8);
+    const wobbleY = 4 * Math.sin(T * 0.9 + 0.5);
+    const pt = {
+      x: base.x + wobbleX,
+      y: base.y + wobbleY,
+    };
+    islandPathPts.push(pt);
+  }
+  // Ensure the very last point lands exactly at the resort door
+  islandPathPts[islandPathPts.length - 1] = { x: islandEnd.x, y: islandEnd.y };
+
+  for (let i = 0; i < islandPathPts.length - 1; i++) {
+    const L = dist(islandPathPts[i], islandPathPts[i + 1]);
+    islandSegLens.push(L);
+    islandTotalLen += L;
+    islandCum.push(islandTotalLen);
+  }
+
+  function islandPosAtS(s) {
+    const ss = clamp(s, 0, islandTotalLen);
+    let i = 0;
+    while (i < islandSegLens.length && islandCum[i + 1] < ss) i++;
+    const segStart = islandPathPts[i];
+    const segEnd = islandPathPts[i + 1];
+    const segS = ss - islandCum[i];
+    const t = islandSegLens[i] === 0 ? 0 : segS / islandSegLens[i];
+    return lerpPt(segStart, segEnd, t);
+  }
+
+  function islandTangentAtS(s) {
+    const ss = clamp(s, 0, islandTotalLen);
+    let i = 0;
+    while (i < islandSegLens.length && islandCum[i + 1] < ss) i++;
+    const a = islandPathPts[i];
+    const b = islandPathPts[i + 1];
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len = Math.hypot(dx, dy) || 1;
+    return { x: dx / len, y: dy / len };
+  }
+
   // ----- Checkpoints -----
   // Put placeholders now; you can add as many as you want later.
   // Each checkpoint uses "s" (distance along path).
   const loremIpsum = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
+  const cp1Text = "I fell in love the first time I saw you at Trees, but our walk on Sunset Beach is when it really hit me. I felt so connected to you, and I knew you were everything I'd ever been looking for...";
+  const cp2Text = "This is the day we chose each other. The whole day felt like a dream, the kind you don’t want to wake up from. The weather was perfect, the views were unreal… but somehow none of it compared to you. I kept catching myself staring, not even on purpose, just because I couldn’t believe I was really there with you. That’s the day our journey actually began, and I still don’t know how anything is supposed to top how perfect it felt.";
+  const cp3Text = "This is the first time you came over to \"our\" home, and the first time we cooked something together. I don't usually enjoy cooking, but with you even that felt exciting. It made me realize how much I love spending time with you. We could be doing absolutely nothing and I'd still love every minute of it.";
+  const cp4Text = "This was the first time in my life I was sad about going on a vacation. You had work the next day but you still came at 6am to drop me at the airport, and that meant so much to me. I'll never forget that. When we got to the airport and I realized I could miss my flight, surprisingly I was almost glad. I wouldn't have to spend a week away from you. The old me would never have imagined being capable of feeling that way about someone. But there I was, feeling it for you.";
+  const cp5Text = "I don't think words can do justice to how I felt during this trip, but let me try. IT WAS MAGICAL!!! I literally felt like I was living in a movie with the co-star from my fantasies. I've never been on a trip I enjoyed more than this one. Waking up with you there, exploring together, just being with you in a new place… it felt like something I'd only ever dreamed about, and suddenly it was real. I didn't want it to end.";
+  const cp6Text = "Best holiday season ever! We did so many things it was insane! Wouldn't change a thing, maybe besides that pizza 😂";
+  const cp7Text = "This was probably the first New Year where I didn't really see the fireworks, but I was more mesmerized than ever. I mean, can't blame me, look at that face 😳 I'm sure 2026 is gonna be the luckiest year of my life so far, given I got to start it with you. First of many New Years, inshallah.";
+  const cp8Text = "It's not like you hadn't already checked all my boxes, and on top of that you love trying out adventurous things too!! Come on Nafeesa, I only have one heart, how many times are you gonna steal it?! It honestly feels like Allah handcrafted you just for me, and I'm so, so glad to have you in my life ❤️";
   const checkpoints = [
-    { id: "cp-1", title: "The Day I Fell in Love", date: "Oct 29 2025", tag: "Sunset Beach", text: loremIpsum, images: ["./photos/beach.jpeg"], s: totalLen * 0.10 },
-    { id: "cp-2", title: "The Most Memorable Day of My Life (So Far)", date: "Nov 2 2025", tag: "Bowen Island", text: loremIpsum, images: ["./photos/bowen.jpeg"], s: totalLen * 0.22 },
-    { id: "cp-3", title: "👩‍🍳Our First Cooking Sesh👨‍🍳", date: "Nov 8 2025", tag: "Home", text: loremIpsum, images: ["./photos/cook.jpeg"], s: totalLen * 0.34 },
-    { id: "cp-4", title: "The First Time We Had to Say Goodbye 😢", date: "Dec 11 2025", tag: "YVR Airport", text: loremIpsum, images: ["./photos/airport.jpeg"], s: totalLen * 0.46 },
-    { id: "cp-5", title: "Our First Getaway", date: "Dec 25 2025", tag: "Sunshine Coast", text: loremIpsum, images: ["./photos/getaway.jpeg", "./photos/getaway2.jpeg"], s: totalLen * 0.58 },
-    { id: "cp-6", title: "Our First Christmas Together", date: "Dec 26 2025", tag: "Capilano", text: loremIpsum, images: ["./photos/christmas0.jpeg", "./photos/christmas.jpeg"], s: totalLen * 0.70 },
-    { id: "cp-7", title: "Our First New Year Together", date: "Dec 31 2025", tag: "Porteau Cove", text: loremIpsum, images: ["./photos/newyear.jpeg", "./photos/newyear2.jpeg"], s: totalLen * 0.82 },
+    { id: "cp-1", title: "The Day I Fell in Love", date: "Oct 29 2025", tag: "Sunset Beach", text: cp1Text, images: ["./photos/beach.jpeg"], s: totalLen * 0.10 },
+    { id: "cp-2", title: "The Most Memorable Day of My Life (So Far)", date: "Nov 2 2025", tag: "Bowen Island", text: cp2Text, images: ["./photos/bowen.jpeg"], s: totalLen * 0.22 },
+    { id: "cp-3", title: "👩‍🍳Our First Cooking Sesh👨‍🍳", date: "Nov 8 2025", tag: "Home", text: cp3Text, images: ["./photos/cook.jpeg"], s: totalLen * 0.34 },
+    { id: "cp-4", title: "The First Time We Had to Say Goodbye 😢", date: "Dec 11 2025", tag: "YVR Airport", text: cp4Text, images: ["./photos/airport.jpeg"], s: totalLen * 0.46 },
+    { id: "cp-5", title: "Our First Getaway", date: "Dec 25 2025", tag: "Sunshine Coast", text: cp5Text, images: ["./photos/getaway.jpeg", "./photos/getaway2.jpeg"], s: totalLen * 0.58 },
+    { id: "cp-6", title: "Our First Christmas Together", date: "Dec 26 2025", tag: "Capilano", text: cp6Text, images: ["./photos/christmas0.jpeg", "./photos/christmas.jpeg"], s: totalLen * 0.70 },
+    { id: "cp-7", title: "Our First New Year Together", date: "Dec 31 2025", tag: "Porteau Cove", text: cp7Text, images: ["./photos/newyear.jpeg", "./photos/newyear2.jpeg"], s: totalLen * 0.82 },
     {
       id: "cp-8",
       title: "Our Adventures",
       date: "Jan 2026",
       tag: "Whistler",
       imageTags: ["Whistler", "Cypress Mt", "Seymour Mt", "Robson", "Hive"],
-      text: loremIpsum,
+      text: cp8Text,
       images: ["./photos/zipline.jpeg", "./photos/hiking.jpeg", "./photos/skiing.jpeg", "./photos/skating.jpeg", "./photos/wallclimbing.jpeg"],
       s: totalLen * 0.92,
     },
@@ -341,7 +446,14 @@
   // ----- Overlay -----
   let overlayOpen = false;
   let valentineOverlayOpen = false;
+  let islandEndPopupOpen = false;
+  let islandEndPopupShown = false;
   let wasAtEndLastFrame = false;
+  let secondMapUnlocked = false;
+  let inSecondMap = false;
+  const secondMapPos = { x: LOG_W / 2, y: LOG_H / 2 + 10 };
+  let islandS = 0;
+  let currentIslandTangent = { x: 1, y: 0 };
   let nearestCheckpoint = null;
   const passedCheckpointIds = new Set();
 
@@ -359,8 +471,9 @@
     cpTag.textContent = cp.tag || "Memory";
     cpText.textContent = cp.text || "";
 
-    // For checkpoint 2 only, make the text column even wider
+    // Cp1: slightly wider text with small gap; cp2: full wide text
     if (cpCard) {
+      cpCard.classList.toggle("checkpointCard--wideTextCp1", cp.id === "cp-1");
       cpCard.classList.toggle("checkpointCard--wideText", cp.id === "cp-2");
     }
 
@@ -377,7 +490,7 @@
 
     function setCarouselIndex(i) {
       carouselIndex = (i + images.length) % images.length;
-      cpImg.src = images[carouselIndex];
+      cpImg.src = images[carouselIndex] + IMAGE_CACHE_BUST;
       cpImg.alt = `${cp.title || "Checkpoint"} photo ${carouselIndex + 1} of ${images.length}`;
       if (cp.id === "cp-8" && Array.isArray(cp.imageTags) && cp.imageTags.length >= images.length) {
         cpTag.textContent = cp.imageTags[carouselIndex] || cp.tag || "Memory";
@@ -389,7 +502,7 @@
     }
 
     if (images.length > 0) {
-      cpImg.src = images[0];
+      cpImg.src = images[0] + IMAGE_CACHE_BUST;
       cpImg.alt = `${cp.title || "Checkpoint"} photo 1 of ${images.length}`;
       if (cp.id === "cp-8" && Array.isArray(cp.imageTags) && cp.imageTags.length >= images.length) {
         cpTag.textContent = cp.imageTags[0] || cp.tag || "Memory";
@@ -452,7 +565,7 @@
     overlayOpen = false;
     overlay.classList.remove("is-open");
     overlay.hidden = true;
-    document.body.style.overflow = valentineOverlayOpen ? "hidden" : "";
+    document.body.style.overflow = (valentineOverlayOpen || islandEndPopupOpen) ? "hidden" : "";
     try { canvas.focus(); } catch (_) {}
   }
 
@@ -491,6 +604,15 @@
     valentineOverlay.classList.add("is-open");
     valentineOverlay.hidden = false;
     document.body.style.overflow = "hidden";
+    // reset which valentine modal is visible inside the overlay
+    if (valentineAskModal) {
+      valentineAskModal.hidden = false;
+      valentineAskModal.style.display = "flex";
+    }
+    if (valentineRightModal) {
+      valentineRightModal.hidden = true;
+      valentineRightModal.style.display = "none";
+    }
     requestAnimationFrame(() => {
       valentineCloseBtn.style.left = "";
       valentineCloseBtn.style.top = "";
@@ -503,7 +625,27 @@
     valentineOverlayOpen = false;
     valentineOverlay.classList.remove("is-open");
     valentineOverlay.hidden = true;
-    document.body.style.overflow = overlayOpen ? "hidden" : "";
+    document.body.style.overflow = (overlayOpen || islandEndPopupOpen) ? "hidden" : "";
+    try { canvas.focus(); } catch (_) {}
+  }
+
+  function openIslandEndPopup() {
+    islandEndPopupOpen = true;
+    if (islandEndOverlay) {
+      islandEndOverlay.classList.add("is-open");
+      islandEndOverlay.hidden = false;
+    }
+    document.body.style.overflow = "hidden";
+    if (islandEndOkBtn) islandEndOkBtn.focus();
+  }
+
+  function closeIslandEndPopup() {
+    islandEndPopupOpen = false;
+    if (islandEndOverlay) {
+      islandEndOverlay.classList.remove("is-open");
+      islandEndOverlay.hidden = true;
+    }
+    document.body.style.overflow = (overlayOpen || valentineOverlayOpen) ? "hidden" : "";
     try { canvas.focus(); } catch (_) {}
   }
 
@@ -512,7 +654,36 @@
   overlay.addEventListener("click", (e) => {
     if (e.target === overlay) closeOverlay();
   });
-  if (valentineYesBtn) valentineYesBtn.addEventListener("click", (e) => { e.preventDefault(); closeValentinePopup(); });
+  if (valentineYesBtn) {
+    valentineYesBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      // swap from the ask modal to the "right choice" panel
+      if (valentineAskModal) {
+        valentineAskModal.hidden = true;
+        valentineAskModal.style.display = "none";
+      }
+      if (valentineRightModal) {
+        valentineRightModal.hidden = false;
+        valentineRightModal.style.display = "flex";
+        if (valentineRightOkBtn) valentineRightOkBtn.focus();
+      } else {
+        closeValentinePopup();
+      }
+    });
+  }
+  if (valentineRightOkBtn) {
+    valentineRightOkBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      closeValentinePopup();
+      // Unlock and move into the second (island) map
+      secondMapUnlocked = true;
+      inSecondMap = true;
+      islandS = 0;
+      const p = islandPosAtS(islandS);
+      secondMapPos.x = p.x;
+      secondMapPos.y = p.y;
+    });
+  }
   if (valentineCloseBtn) {
     valentineCloseBtn.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); moveValentineNotYetButton(); });
     valentineCloseBtn.addEventListener("mouseenter", () => moveValentineNotYetButton());
@@ -520,12 +691,21 @@
   valentineOverlay.addEventListener("click", (e) => {
     if (e.target === valentineOverlay) closeValentinePopup();
   });
+  if (islandEndOkBtn) {
+    islandEndOkBtn.addEventListener("click", (e) => { e.preventDefault(); closeIslandEndPopup(); });
+  }
+  if (islandEndOverlay) {
+    islandEndOverlay.addEventListener("click", (e) => {
+      if (e.target === islandEndOverlay) closeIslandEndPopup();
+    });
+  }
   // Esc always closes (capture so it runs before anything else)
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && (overlayOpen || valentineOverlayOpen)) {
+    if (e.key === "Escape" && (overlayOpen || valentineOverlayOpen || islandEndPopupOpen)) {
       e.preventDefault();
       e.stopPropagation();
-      if (valentineOverlayOpen) closeValentinePopup();
+      if (islandEndPopupOpen) closeIslandEndPopup();
+      else if (valentineOverlayOpen) closeValentinePopup();
       else closeOverlay();
     }
   }, true);
@@ -543,8 +723,12 @@
   };
 
   window.addEventListener("keydown", (e) => {
-    if (overlayOpen || valentineOverlayOpen) {
-      if (e.key === "Escape") (valentineOverlayOpen ? closeValentinePopup : closeOverlay)();
+    if (overlayOpen || valentineOverlayOpen || islandEndPopupOpen) {
+      if (e.key === "Escape") {
+        if (islandEndPopupOpen) closeIslandEndPopup();
+        else if (valentineOverlayOpen) closeValentinePopup();
+        else closeOverlay();
+      }
       return;
     }
 
@@ -697,7 +881,85 @@
     ctx.drawImage(planeImg, cx - w / 2, cy - h, w, h);
   }
 
-  function drawCheckpoint(cp, isNear) {
+  function drawBridgeMarker() {
+    if (!bridgeImg.complete || !bridgeImg.naturalWidth) return;
+    const cp6 = checkpoints.find((c) => c.id === "cp-6");
+    if (!cp6 || !cp6.pos) return;
+    const base = cp6.pos;
+    const baseW = 72;
+    const scale = baseW / bridgeImg.naturalWidth;
+    const w = baseW;
+    const h = bridgeImg.naturalHeight * scale;
+    const offsetX = -52; // to the left of cp6
+    const offsetY = 40;
+    const cx = base.x + offsetX;
+    const cy = base.y + offsetY;
+    ctx.drawImage(bridgeImg, cx - w / 2, cy - h, w, h);
+  }
+
+  function drawCoveMarker() {
+    if (!coveImg.complete || !coveImg.naturalWidth) return;
+    const cp7 = checkpoints.find((c) => c.id === "cp-7");
+    if (!cp7 || !cp7.pos) return;
+    const base = cp7.pos;
+    const baseW = 72;
+    const scale = baseW / coveImg.naturalWidth;
+    const w = baseW;
+    const h = coveImg.naturalHeight * scale;
+    const offsetX = 50; // to the right of cp7
+    const offsetY = 50;
+    const cx = base.x + offsetX;
+    const cy = base.y + offsetY;
+    ctx.drawImage(coveImg, cx - w / 2, cy - h, w, h);
+  }
+
+  function drawBuildingMarker() {
+    if (!buildingImg.complete || !buildingImg.naturalWidth) return;
+    const cp3 = checkpoints.find((c) => c.id === "cp-3");
+    if (!cp3 || !cp3.pos) return;
+    const base = cp3.pos;
+    const baseW = 52;
+    const scale = baseW / buildingImg.naturalWidth;
+    const w = baseW;
+    const h = buildingImg.naturalHeight * scale;
+    const offsetY = 10; // just above cp3
+    const cx = base.x;
+    const cy = base.y - offsetY;
+    ctx.drawImage(buildingImg, cx - w / 2, cy - h, w, h);
+  }
+
+  function drawIslandPath() {
+    ctx.save();
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    // outer darker edge
+    ctx.strokeStyle = COLORS.pathEdge;
+    ctx.lineWidth = 10;
+    ctx.beginPath();
+    ctx.moveTo(islandPathPts[0].x, islandPathPts[0].y);
+    for (let i = 1; i < islandPathPts.length; i++) {
+      ctx.lineTo(islandPathPts[i].x, islandPathPts[i].y);
+    }
+    ctx.stroke();
+    // inner main path
+    ctx.strokeStyle = COLORS.path;
+    ctx.lineWidth = 5;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawResortOnIsland() {
+    if (!resortImg.complete || !resortImg.naturalWidth) return;
+    const baseW = 160;
+    const scale = baseW / resortImg.naturalWidth;
+    const w = baseW;
+    const h = resortImg.naturalHeight * scale;
+    const cx = ISLAND_RESORT_X - 20;
+    const cy = ISLAND_RESORT_Y + 50;
+    ctx.drawImage(resortImg, cx - w / 2, cy - h, w, h);
+  }
+
+  function drawCheckpoint(cp, isNear, number) {
     const x = px(cp.pos.x);
     const y = px(cp.pos.y);
     const heartPixels = [
@@ -712,24 +974,38 @@
     const base = 3;
     const scale = isNear ? 1 + 0.18 * Math.sin(Date.now() * 0.005) : 1;
 
-    const pulse = 0.15 + 0.12 * Math.sin(Date.now() * 0.002);
+    const isGolden = cp.id === "cp-2";
+    const pulseGlow = isGolden ? "#d4a84b" : "#e87898";
+    const pulse = isGolden
+      ? 0.22 + 0.2 * Math.sin(Date.now() * 0.0028)
+      : 0.15 + 0.12 * Math.sin(Date.now() * 0.002);
+    const glowSpread = isGolden ? 1.42 : 1.35;
     ctx.save();
     ctx.globalAlpha = pulse;
     heartPixels.forEach(([dx, dy]) => {
-      const gx = x + Math.round(dx * base * 1.35);
-      const gy = y + Math.round(dy * base * 1.35);
+      const gx = x + Math.round(dx * base * glowSpread);
+      const gy = y + Math.round(dy * base * glowSpread);
       const gs = 4;
-      pxRect(gx - 1, gy - 1, gs, gs, "#e87898");
+      pxRect(gx - 1, gy - 1, gs, gs, pulseGlow);
     });
     ctx.restore();
 
-    const heartColor = isNear ? "#f06070" : "#c83048";
+    const heartColor = isGolden
+      ? (isNear ? COLORS.checkpointLight : COLORS.checkpoint)
+      : (isNear ? "#f06070" : "#c83048");
     const size = base;
     heartPixels.forEach(([dx, dy]) => {
       const sx = x + Math.round(dx * base * scale);
       const sy = y + Math.round(dy * base * scale);
       pxRect(sx, sy, size, size, heartColor);
     });
+    if (number != null) {
+      ctx.fillStyle = "#fff";
+      ctx.font = "bold 10px Outfit, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(String(number), x, y);
+    }
   }
 
   function drawSpeechBubble(x, y, text) {
@@ -782,15 +1058,27 @@
 
   const spriteZeecho = new Image();
   const spriteNafeesa = new Image();
+  const spriteZeechoSuit = new Image();
+  const spriteNafeesaDress = new Image();
   const treesCafeImg = new Image();
   const tentImg = new Image();
   const planeImg = new Image();
+  const bridgeImg = new Image();
+  const coveImg = new Image();
+  const buildingImg = new Image();
+  const resortImg = new Image();
   const imgVersion = "?v=" + Date.now();
   spriteZeecho.src = "zeecho-pixel.png" + imgVersion;
   spriteNafeesa.src = "nafeesa-pixel.png" + imgVersion;
+  spriteZeechoSuit.src = "zeeco-suit.png" + imgVersion;
+  spriteNafeesaDress.src = "nafeesa-dress.png" + imgVersion;
   treesCafeImg.src = "trees-cafe.png" + imgVersion;
   tentImg.src = "photos/tent.png" + imgVersion;
   planeImg.src = "plane.png" + imgVersion;
+  bridgeImg.src = "bridge.png" + imgVersion;
+  coveImg.src = "cove.png" + imgVersion;
+  buildingImg.src = "building.png" + imgVersion;
+  resortImg.src = "resort.png" + imgVersion;
 
   const SPRITE_HEIGHT = 38;
 
@@ -816,6 +1104,8 @@
   const heartRainParticles = [];
   const HEART_RAIN_MAX = 55;
   const HEART_RAIN_SPAWN_INTERVAL = 0.12;
+  const HEART_RAIN_ISLAND_MAX = 95;
+  const HEART_RAIN_ISLAND_SPAWN_INTERVAL = 0.055;
   let heartRainAccum = 0;
   const smallHeartPixels = [
     [0, -2], [-1, -2], [1, -2],
@@ -840,11 +1130,17 @@
   function updateHeartRain(dt) {
     const totalCheckpoints = checkpoints.length;
     const passedCount = passedCheckpointIds.size;
-    const rainIntensity = totalCheckpoints === 0 ? 0 : passedCount / totalCheckpoints;
-    const maxParticles = Math.round(HEART_RAIN_MAX * rainIntensity);
-    const spawnInterval = passedCount > 0
-      ? HEART_RAIN_SPAWN_INTERVAL * (totalCheckpoints / passedCount)
-      : 999;
+    let maxParticles, spawnInterval;
+    if (inSecondMap) {
+      maxParticles = HEART_RAIN_ISLAND_MAX;
+      spawnInterval = HEART_RAIN_ISLAND_SPAWN_INTERVAL;
+    } else {
+      const rainIntensity = totalCheckpoints === 0 ? 0 : passedCount / totalCheckpoints;
+      maxParticles = Math.round(HEART_RAIN_MAX * rainIntensity);
+      spawnInterval = passedCount > 0
+        ? HEART_RAIN_SPAWN_INTERVAL * (totalCheckpoints / passedCount)
+        : 999;
+    }
 
     heartRainAccum += dt;
     while (heartRainAccum >= spawnInterval && heartRainParticles.length < maxParticles) {
@@ -857,7 +1153,7 @@
       p.x += p.vx * dt;
       if (p.y > LOG_H + 15) heartRainParticles.splice(i, 1);
     }
-    if (passedCount === 0 && heartRainParticles.length > maxParticles) {
+    if (!inSecondMap && heartRainParticles.length > maxParticles) {
       heartRainParticles.splice(maxParticles);
     }
   }
@@ -865,7 +1161,7 @@
     const totalCheckpoints = checkpoints.length;
     const passedCount = passedCheckpointIds.size;
     const rainIntensity = totalCheckpoints === 0 ? 0 : passedCount / totalCheckpoints;
-    const intensityBoost = 0.5 + rainIntensity;
+    const intensityBoost = inSecondMap ? 1.1 : (0.5 + rainIntensity);
     const t = frameNow * 0.003;
 
     for (let i = 0; i < heartRainParticles.length; i++) {
@@ -884,6 +1180,88 @@
     }
     ctx.globalAlpha = 1;
   }
+  function drawHeartPixel(cx, cy, color) {
+    // simple 6x5 pixel heart
+    const x = Math.round(cx);
+    const y = Math.round(cy);
+    ctx.fillStyle = color;
+    pxRect(x - 1, y - 3, 2, 2, color);
+    pxRect(x + 1, y - 3, 2, 2, color);
+    pxRect(x - 2, y - 2, 4, 3, color);
+    pxRect(x + 0, y - 2, 4, 3, color);
+    pxRect(x - 1, y + 1, 4, 1, color);
+    pxRect(x, y + 2, 2, 1, color);
+  }
+
+  // ----- Island extras: fish + clouds -----
+  const ISLAND_FISH_COUNT = 7;
+  const ISLAND_CLOUD_COUNT = 7;
+
+  function drawPixelFish(cx, cy, dir) {
+    // tiny 5x3-ish fish, dir = 1 (right) or -1 (left)
+    const x = Math.round(cx);
+    const y = Math.round(cy);
+    const body = "#f0e4b8";
+    const fin = "#e0b868";
+    const eye = "#2a2838";
+    const s = dir >= 0 ? 1 : -1;
+
+    // body
+    pxRect(x - 2 * s, y - 1, 4, 2, body);
+    // tail
+    pxRect(x + 2 * s, y - 1, 1 * s, 1, fin);
+    pxRect(x + 2 * s, y, 1 * s, 1, fin);
+    // eye
+    pxRect(x - 1 * s, y, 1, 1, eye);
+  }
+
+  function drawPixelCloud(cx, cy, scale) {
+    const x = Math.round(cx);
+    const y = Math.round(cy);
+    const c = "#f5f0ff";
+    const r = Math.max(5, Math.round(8 * scale)); // bigger, softer cloud
+    // middle puff
+    pxRect(x - r, y - r, r * 2, r, c);
+    // top-left puff
+    pxRect(x - r - 4, y - r - 2, r, r, c);
+    // top-right puff
+    pxRect(x + 2, y - r - 3, r, r + 1, c);
+    // bottom puff
+    pxRect(x - r - 2, y - 1, r * 2 + 4, r, c);
+  }
+
+  function drawIslandFish() {
+    const t = frameNow / 900;
+    for (let i = 0; i < ISLAND_FISH_COUNT; i++) {
+      const phase = i / ISLAND_FISH_COUNT;
+      const ang = phase * Math.PI * 2 + t * 0.9;
+      const radius = Math.max(ISLAND_HALF_W, ISLAND_HALF_H) * 1.05;
+      const baseX = ISLAND_CENTER_X + Math.cos(ang) * radius;
+      const baseY = ISLAND_CENTER_Y + Math.sin(ang) * radius * 0.55;
+      // vertical hop
+      const jump = Math.sin(t * 3 + i * 1.7);
+      const y = baseY - Math.max(0, jump) * 10;
+      const dir = Math.cos(ang) >= 0 ? 1 : -1;
+      // only draw when "above" the water a bit so it feels like a jump
+      if (jump > 0.15) {
+        drawPixelFish(baseX, y, dir);
+      }
+    }
+  }
+
+  function drawIslandClouds() {
+    const t = frameNow / 40000;
+    for (let i = 0; i < ISLAND_CLOUD_COUNT; i++) {
+      // two staggered rows of large clouds sliding gently across the sky
+      const row = i % 2;
+      const baseX = 40 + (i * (LOG_W - 80)) / (ISLAND_CLOUD_COUNT - 1);
+      const drift = (t * LOG_W * 0.4 + i * 30) % (LOG_W + 120) - 60;
+      const x = (baseX + drift + LOG_W + 120) % (LOG_W + 120) - 20;
+      const y = row === 0 ? 34 + (i % 3) * 4 : 58 + (i % 3) * 3;
+      const scale = 1.1 + 0.18 * Math.sin(frameNow / 2200 + i * 0.7);
+      drawPixelCloud(x, y, scale);
+    }
+  }
 
   // ----- Game loop -----
   let last = performance.now();
@@ -896,13 +1274,40 @@
     if (controls.down) move = -1;
     if (controls.up && controls.down) move = 0;
 
-    const tan = tangentAtS(player.s);
+    if (inSecondMap) {
+      // Same 1D path-style movement as map 1, but along the island path
+      if (move !== 0) {
+        islandS = clamp(islandS + move * player.speed * dt, 0, islandTotalLen);
+        player.walkT += dt * 6;
+        player.bob += dt * 10;
+        const tan2 = islandTangentAtS(islandS);
+        player.facing = { x: tan2.x * move, y: tan2.y * move };
+      }
+      const islandPos = islandPosAtS(islandS);
+      secondMapPos.x = islandPos.x;
+      secondMapPos.y = islandPos.y;
+      currentIslandTangent = islandTangentAtS(islandS);
 
-    if (move !== 0) {
-      player.s = clamp(player.s + move * player.speed * dt, 0, totalLen);
-      player.walkT += dt * 6;
-      player.bob += dt * 10;
-      player.facing = { x: tan.x * move, y: tan.y * move };
+      if (islandS >= islandTotalLen - 8 && !islandEndPopupShown && !islandEndPopupOpen) {
+        islandEndPopupShown = true;
+        openIslandEndPopup();
+      }
+
+      // Only return to main map when they deliberately walk back to the start (pressing down at the beginning)
+      if (islandS <= 4 && move < 0) {
+        inSecondMap = false;
+        islandEndPopupShown = false;
+        player.s = totalLen - 10;
+      }
+    } else {
+      const tan = tangentAtS(player.s);
+
+      if (move !== 0) {
+        player.s = clamp(player.s + move * player.speed * dt, 0, totalLen);
+        player.walkT += dt * 6;
+        player.bob += dt * 10;
+        player.facing = { x: tan.x * move, y: tan.y * move };
+      }
     }
 
     // Find nearest checkpoint for prompt
@@ -910,16 +1315,20 @@
     // toward Trees Café, then continue along the path.
     const meetS = totalLen * 0.04;
     let p;
-    if (player.s <= meetS) {
-      const treesPos = posAtS(meetS);
-      const spawnPos = { x: treesPos.x, y: 30 }; // high near the top of the map
-      const tMeet = clamp(player.s / meetS, 0, 1);
-      p = {
-        x: lerp(spawnPos.x, treesPos.x, tMeet),
-        y: lerp(spawnPos.y, treesPos.y, tMeet),
-      };
+    if (!inSecondMap) {
+      if (player.s <= meetS) {
+        const treesPos = posAtS(meetS);
+        const spawnPos = { x: treesPos.x, y: 30 }; // high near the top of the map
+        const tMeet = clamp(player.s / meetS, 0, 1);
+        p = {
+          x: lerp(spawnPos.x, treesPos.x, tMeet),
+          y: lerp(spawnPos.y, treesPos.y, tMeet),
+        };
+      } else {
+        p = posAtS(player.s);
+      }
     } else {
-      p = posAtS(player.s);
+      p = { x: secondMapPos.x, y: secondMapPos.y };
     }
     let best = null;
     let bestD = Infinity;
@@ -945,11 +1354,35 @@
     }
 
     const atEnd = player.s >= totalLen - 3;
-    if (atEnd && !wasAtEndLastFrame && !valentineOverlayOpen) openValentinePopup();
+    if (atEnd && !wasAtEndLastFrame && !valentineOverlayOpen) {
+      if (!secondMapUnlocked) {
+        // First time reaching the end: show valentine ask popup
+        openValentinePopup();
+      } else {
+        // After unlock, walking to the end jumps you back into the second map
+        inSecondMap = true;
+        islandS = 0;
+        const p2 = islandPosAtS(islandS);
+        secondMapPos.x = p2.x;
+        secondMapPos.y = p2.y;
+      }
+    }
     wasAtEndLastFrame = atEnd;
   }
 
   function render() {
+    if (journeyBanner && journeyBannerTitle) {
+      if (inSecondMap) {
+        journeyBanner.classList.remove("hud__banner--bottom");
+        journeyBanner.classList.add("hud__banner--center-top");
+        journeyBannerTitle.textContent = "Valentines Day";
+      } else {
+        journeyBanner.classList.remove("hud__banner--center-top");
+        journeyBanner.classList.add("hud__banner--bottom");
+        journeyBannerTitle.textContent = "Our Journey So Far";
+      }
+    }
+
     const cw = canvas.width;
     const ch = canvas.height;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -959,6 +1392,94 @@
 
     ctx.fillStyle = COLORS.sky;
     ctx.fillRect(0, 0, LOG_W, LOG_H);
+
+    if (inSecondMap) {
+      // Future map: full-screen tile stage with a small island (more water, same pixel style)
+      seed = 20260205;
+      for (let ty = 0; ty < ROWS; ty++) {
+        for (let tx = 0; tx < COLS; tx++) {
+          const cx = (tx + 0.5) * TILE;
+          const cy = (ty + 0.5) * TILE;
+          const dx = (cx - ISLAND_CENTER_X) / ISLAND_HALF_W;
+          const dy = (cy - ISLAND_CENTER_Y) / ISLAND_HALF_H;
+          const r2 = dx * dx + dy * dy;
+          let tileType;
+          if (r2 > 1.15) {
+            // open water
+            tileType = 1;
+          } else {
+            // island (grass + occasional flowers)
+            const noise = (tx * 37 + ty * 11) % 5;
+            if (r2 > 1) {
+              // thin "shore" band, still grass but a bit sparser
+              tileType = 0;
+            } else if (noise === 0) {
+              tileType = 2;
+            } else if (noise === 1) {
+              tileType = 3;
+            } else if (noise === 2) {
+              tileType = 4;
+            } else {
+              tileType = 0;
+            }
+          }
+          drawTile(tx, ty, tileType);
+        }
+      }
+
+      // Small pixel clouds in the sky above the island
+      drawIslandClouds();
+
+      // Island path + resort on the right side (future destination)
+      drawIslandPath();
+      drawResortOnIsland();
+
+      drawHeartRain();
+
+      // Draw couple on island — same as map 1: perpendicular to path, same bob and draw order
+      const tan2 = currentIslandTangent;
+      const nx2 = -tan2.y;
+      const ny2 = tan2.x;
+      const sep2 = 7;
+      const phase2 = player.walkT % 1;
+      const bob2 = 1.5 * Math.sin(player.bob);
+      const zeechoPos2 = { x: secondMapPos.x - nx2 * sep2, y: secondMapPos.y - ny2 * sep2 };
+      const nafeesaPos2 = { x: secondMapPos.x + nx2 * sep2, y: secondMapPos.y + ny2 * sep2 };
+      const first2 = zeechoPos2.y < nafeesaPos2.y ? { pos: zeechoPos2, who: "zeecho" } : { pos: nafeesaPos2, who: "nafeesa" };
+      const second2 = zeechoPos2.y < nafeesaPos2.y ? { pos: nafeesaPos2, who: "nafeesa" } : { pos: zeechoPos2, who: "zeecho" };
+
+      const useSprites2 =
+        spriteZeechoSuit.complete &&
+        spriteNafeesaDress.complete &&
+        spriteZeechoSuit.naturalWidth > 0 &&
+        spriteNafeesaDress.naturalWidth > 0;
+      const nafeesaGroundOffset2 = 6;
+      const nafeesaHeightMult2 = 1.07;
+      const facing2 = (player.facing && (player.facing.x !== 0 || player.facing.y !== 0)) ? player.facing : { x: 1, y: 0 };
+
+      if (useSprites2) {
+        drawCharacterSprite(
+          first2.who === "zeecho" ? spriteZeechoSuit : spriteNafeesaDress,
+          first2.pos.x, first2.pos.y, facing2, bob2,
+          first2.who === "nafeesa" ? nafeesaGroundOffset2 : 0,
+          first2.who === "nafeesa" ? nafeesaHeightMult2 : 1
+        );
+        drawCharacterSprite(
+          second2.who === "zeecho" ? spriteZeechoSuit : spriteNafeesaDress,
+          second2.pos.x, second2.pos.y, facing2, bob2,
+          second2.who === "nafeesa" ? nafeesaGroundOffset2 : 0,
+          second2.who === "nafeesa" ? nafeesaHeightMult2 : 1
+        );
+      } else {
+        const firstPal2 = first2.who === "zeecho" ? palettes.a : palettes.b;
+        const secondPal2 = second2.who === "zeecho" ? palettes.a : palettes.b;
+        drawPerson(first2.pos.x, first2.pos.y, firstPal2, phase2, facing2);
+        drawPerson(second2.pos.x, second2.pos.y, secondPal2, phase2, facing2);
+      }
+
+      ctx.restore();
+      return;
+    }
 
     seed = 1337;
     for (let y = 0; y < ROWS; y++) {
@@ -983,13 +1504,16 @@
     drawTreesCafeMarker();
     drawTentMarker();
     drawPlaneMarker();
+    drawBridgeMarker();
+    drawCoveMarker();
+    drawBuildingMarker();
     drawSign(pathPts[pathPts.length - 1].x + 8, pathPts[pathPts.length - 1].y - 14, "Feb 2026");
 
     const p = posAtS(player.s);
-    for (const cp of checkpoints) {
+    checkpoints.forEach((cp, i) => {
       const near = nearestCheckpoint && nearestCheckpoint.id === cp.id;
-      drawCheckpoint(cp, near);
-    }
+      drawCheckpoint(cp, near, i + 1);
+    });
 
     const tan = tangentAtS(player.s);
     const nx = -tan.y;
@@ -1055,7 +1579,7 @@
     last = now;
     frameNow = now;
     updateHeartRain(dt);
-    if (!overlayOpen && !valentineOverlayOpen) update(dt);
+    if (!overlayOpen && !valentineOverlayOpen && !islandEndPopupOpen) update(dt);
     render();
     requestAnimationFrame(frame);
   }

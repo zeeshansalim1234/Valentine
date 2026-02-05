@@ -43,50 +43,107 @@ html, body {
   right: 0;
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 20px 24px;
+  justify-content: flex-end;
+  padding: 16px 20px;
   pointer-events: none;
   z-index: 100;
 }
 .hud > * { pointer-events: auto; }
-.title {
-  font-size: 1.1rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
+
+/* Map sign for "Our Journey So Far" */
+.hud__banner {
+  position: relative;
+  display: inline-block;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5));
 }
-.subtitle {
-  margin-top: 6px;
-  font-size: 0.8rem;
-  color: var(--muted);
+.hud__banner-body {
+  position: relative;
+  padding: 14px 28px 18px;
+  min-width: 320px;
+  /* Cool pixel sign that matches map sky/sign colors */
+  background: linear-gradient(180deg, #4a5678 0%, #3a4260 50%, #272c44 100%);
+  border-radius: 0;
+  border: 3px solid #6a6a82;
+  box-shadow:
+    inset 0 0 0 2px #2a2838,
+    0 4px 0 0 #0f0d14,
+    0 8px 18px rgba(0, 0, 0, 0.55);
+}
+.hud__banner-body::after {
+  /* subtle inner highlight along the top edge */
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 6px;
+  right: 6px;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(232, 228, 240, 0.6), transparent, rgba(232, 228, 240, 0.6));
+  opacity: 0.6;
+}
+.hud__title {
+  margin: 0;
+  font-family: "Press Start 2P", cursive;
+  font-size: 0.9rem;
   font-weight: 400;
+  color: #ffe8f0;
+  letter-spacing: 0.14em;
+  line-height: 1.6;
+  text-shadow:
+    0 1px 0 #0f0d14,
+    0 0 6px rgba(0, 0, 0, 0.6),
+    0 0 10px rgba(224, 136, 160, 0.35);
 }
 
-.legend {
+/* Banner: bottom-right on map 1 */
+.hud__banner--bottom {
   position: fixed;
-  left: 24px;
-  bottom: 24px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 10px 14px;
-  background: var(--panel);
-  border-radius: 12px;
-  font-size: 0.75rem;
-  color: var(--muted);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--border);
+  bottom: 80px;
+  right: 60px;
   z-index: 100;
 }
-.chip {
-  display: inline-block;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
+.hud__banner--bottom .hud__banner-rod {
+  top: -6px;
 }
-.chip--path { background: var(--path); box-shadow: 0 0 10px var(--path-glow); }
-.chip--checkpoint { background: var(--checkpoint); box-shadow: 0 0 10px var(--checkpoint-glow); }
+
+/* Banner: center-top on island map — pink with hearts */
+.hud__banner--center-top {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+}
+.hud__banner--center-top .hud__banner-rod {
+  top: -6px;
+}
+.hud__banner--center-top .hud__banner-body {
+  background: linear-gradient(180deg, #e8a0b8 0%, #d87898 50%, #c85878 100%);
+  border: 3px solid #e8b0c8;
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 220, 235, 0.4),
+    0 4px 0 0 #8a4058,
+    0 8px 18px rgba(0, 0, 0, 0.4);
+}
+.hud__banner--center-top .hud__banner-body::after {
+  background: linear-gradient(90deg, rgba(255, 240, 248, 0.7), transparent, rgba(255, 240, 248, 0.7));
+}
+.hud__banner--center-top .hud__title {
+  color: #fff5f8;
+  text-shadow:
+    0 1px 0 #5a2845,
+    0 0 8px rgba(255, 180, 200, 0.5),
+    0 0 12px rgba(232, 120, 154, 0.4);
+}
+.hud__banner--center-top .hud__title::before {
+  content: "♥ ";
+  color: #ff88a8;
+  text-shadow: 0 0 6px rgba(255, 136, 168, 0.8);
+}
+.hud__banner--center-top .hud__title::after {
+  content: " ♥";
+  color: #ff88a8;
+  text-shadow: 0 0 6px rgba(255, 136, 168, 0.8);
+}
 
 .btn {
   font-family: inherit;
@@ -103,6 +160,28 @@ html, body {
 }
 .btn:hover { background: rgba(50, 45, 70, 0.9); }
 .btn:active { transform: scale(0.98); }
+
+/* Prominent music toggle in top-right — green to match grass */
+.btn--music {
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 14px 24px;
+  border-radius: 12px;
+  border-width: 2px;
+  border-color: #5a8a6a;
+  background: rgba(30, 26, 42, 0.95);
+  color: var(--ink);
+  box-shadow: 0 0 16px rgba(90, 138, 106, 0.45), 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+.btn--music:hover {
+  background: rgba(45, 40, 60, 0.95);
+  box-shadow: 0 0 20px rgba(90, 138, 106, 0.5), 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+.btn--music[aria-pressed="false"] {
+  border-color: var(--muted);
+  color: var(--muted);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
 
 kbd {
   font-size: 0.7rem;
@@ -295,8 +374,12 @@ kbd {
   gap: 8px;
   align-items: stretch;
 }
+.checkpointCard--wideTextCp1 {
+  /* Cp1: text a bit wider than default but leave a small gap */
+  grid-template-columns: 1.05fr 1.75fr;
+}
 .checkpointCard--wideText {
-  /* Make checkpoint 2's text box noticeably wider */
+  /* Cp2: text box noticeably wider */
   grid-template-columns: 0.8fr 2.0fr;
 }
 .checkpointCard__imgWrap {
@@ -388,8 +471,8 @@ kbd {
   background: #252035;
   padding: 14px 18px;
   color: #b8b0d0;
-  font-size: 0.55rem;
-  line-height: 1.9;
+  font-size: 0.9rem;
+  line-height: 1.7;
   box-shadow: inset 0 0 0 2px #1e1a2a;
   align-self: stretch;
 }
@@ -413,6 +496,9 @@ kbd {
   padding: 14px 18px;
   background: #2a2438;
   border-top: 4px solid #3d3548;
+}
+.modal__footer--center {
+  justify-content: center;
 }
 .modal__valentine .modal__footer {
   background: linear-gradient(0deg, #4a2845 0%, #3d2038 100%);
@@ -473,7 +559,7 @@ kbd {
   gap: 16px;
 }
 .modal__title--big {
-  font-size: 0.65rem;
+  font-size: 0.85rem;
   line-height: 1.6;
   padding: 0 12px;
 }
@@ -484,6 +570,25 @@ kbd {
   gap: 14px;
   justify-content: center;
   align-items: center;
+}
+.valentine-right-text,
+.valentine-right-sub {
+  font-size: 0.6rem;
+  line-height: 1.7;
+  text-align: center;
+}
+.valentine-right-sub {
+  opacity: 0.9;
+}
+.island-end-text {
+  font-size: 0.7rem;
+  line-height: 1.7;
+  text-align: center;
+  color: #ffd0e0;
+}
+.valentine-right-emoji {
+  font-size: 1.6em;
+  vertical-align: middle;
 }
 .valentine-tip {
   font-size: 0.8rem;
@@ -534,7 +639,7 @@ kbd {
   background: linear-gradient(180deg, #5a3855 0%, #4a2845 100%);
 }
 @media (max-width: 640px) {
-  .modal__title--big { font-size: 0.5rem; }
+  .modal__title--big { font-size: 0.6rem; }
   .checkpointCard { grid-template-columns: 1fr; }
   .modal__title { font-size: 1rem; }
   .legend { flex-direction: column; align-items: flex-start; }
