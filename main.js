@@ -259,7 +259,7 @@
     { id: "cp-2", title: "The Most Memorable Day of My Life (So Far)", date: "Nov 2 2025", tag: "Bowen Island", text: cp2Text, images: ["./photos/bowen.jpeg"], s: totalLen * 0.22 },
     { id: "cp-3", title: "👩‍🍳Our First Cooking Sesh👨‍🍳", date: "Nov 8 2025", tag: "Home", text: cp3Text, images: ["./photos/cook.jpeg"], s: totalLen * 0.34 },
     { id: "cp-4", title: "The First Time We Had to Say Goodbye 😢", date: "Dec 11 2025", tag: "YVR Airport", text: cp4Text, images: ["./photos/airport.jpeg"], s: totalLen * 0.46 },
-    { id: "cp-5", title: "Our First Getaway", date: "Dec 25 2025", tag: "Sunshine Coast", text: cp5Text, images: ["./photos/getaway.jpeg", "./photos/getaway2.jpeg"], s: totalLen * 0.58 },
+    { id: "cp-5", title: "Our First Getaway", date: "Dec 25 2025", tag: "Sunshine Coast", text: cp5Text, images: ["./photos/getaway2.jpeg", "./photos/getaway.jpeg"], s: totalLen * 0.58 },
     { id: "cp-6", title: "Our First Christmas Together", date: "Dec 26 2025", tag: "Capilano", text: cp6Text, images: ["./photos/christmas0.jpeg", "./photos/christmas.jpeg"], s: totalLen * 0.70 },
     { id: "cp-7", title: "Our First New Year Together", date: "Dec 31 2025", tag: "Porteau Cove", text: cp7Text, images: ["./photos/newyear.jpeg", "./photos/newyear2.jpeg"], s: totalLen * 0.82 },
     {
