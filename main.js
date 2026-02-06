@@ -35,6 +35,11 @@
   const journeyBannerTitle = document.getElementById("journeyBannerTitle");
   const islandEndOverlay = document.getElementById("islandEndOverlay");
   const islandEndOkBtn = document.getElementById("islandEndOkBtn");
+  const gateOverlay = document.getElementById("gateOverlay");
+  const gateScreen = document.getElementById("gateScreen");
+  const gateGoAway = document.getElementById("gateGoAway");
+  const gateYesBtn = document.getElementById("gateYesBtn");
+  const gateNoBtn = document.getElementById("gateNoBtn");
 
   // Pixel-art resolution (scaled to fill window; crisp pixels)
   const LOG_W = 480;
@@ -425,11 +430,17 @@
     }
   }
 
-  musicBtn.addEventListener("click", () => setMusic(!audio.on));
+  musicBtn.addEventListener("click", () => {
+    const gateDismissed = gateOverlay && gateOverlay.classList.contains("is-dismissed");
+    if (gateDismissed) tryStartMusic();
+    setMusic(!audio.on);
+  });
   setMusic(true);
 
+  let musicStartedByMovement = false;
   function tryStartMusic() {
-    if (!audio.on) return;
+    if (!audio.on || musicStartedByMovement) return;
+    musicStartedByMovement = true;
     if (audio.track) {
       audio.useTrack = true;
       if (audio.timer) {
@@ -444,9 +455,6 @@
       startRomanticFallback();
     }
   }
-  document.addEventListener("keydown", tryStartMusic, { once: true });
-  document.addEventListener("click", tryStartMusic, { once: true });
-  document.addEventListener("touchstart", tryStartMusic, { once: true });
 
   // ----- Overlay -----
   let overlayOpen = false;
@@ -654,6 +662,20 @@
     try { canvas.focus(); } catch (_) {}
   }
 
+  if (gateYesBtn) {
+    gateYesBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      if (gateOverlay) gateOverlay.classList.add("is-dismissed");
+    });
+  }
+  if (gateNoBtn) {
+    gateNoBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      if (gateScreen) gateScreen.hidden = true;
+      if (gateGoAway) gateGoAway.hidden = false;
+    });
+  }
+
   okBtn.addEventListener("click", (e) => { e.preventDefault(); closeOverlay(); });
   closeOverlayBtn.addEventListener("click", (e) => { e.preventDefault(); closeOverlay(); });
   overlay.addEventListener("click", (e) => {
@@ -738,6 +760,8 @@
     }
 
     if (e.key in KEYMAP) {
+      const gateDismissed = gateOverlay && gateOverlay.classList.contains("is-dismissed");
+      if (gateDismissed) tryStartMusic();
       controls[KEYMAP[e.key]] = true;
       e.preventDefault();
     }

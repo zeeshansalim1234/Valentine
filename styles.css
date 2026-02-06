@@ -22,6 +22,78 @@ html, body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Gate screen: Are you Nafeesa? — scales with viewport */
+.gate-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, #2a1525 0%, #1a0f18 100%);
+}
+.gate-overlay.is-dismissed {
+  display: none;
+}
+.gate-screen {
+  text-align: center;
+  padding: clamp(1rem, 4vmin, 3rem);
+  max-width: 95vw;
+}
+.gate-hearts {
+  font-size: clamp(2rem, 14vmin, 7rem);
+  color: #e87898;
+  letter-spacing: 0.3em;
+  margin-bottom: clamp(0.5rem, 3vmin, 2rem);
+  text-shadow: 0 0 20px rgba(232, 120, 152, 0.5);
+}
+.gate-title {
+  font-family: "Press Start 2P", cursive;
+  font-size: clamp(1rem, 7vmin, 3.5rem);
+  color: #ffd0e0;
+  margin: 0 0 clamp(1.5rem, 6vmin, 4rem);
+  line-height: 1.5;
+  letter-spacing: 0.06em;
+}
+.gate-buttons {
+  display: flex;
+  gap: clamp(1rem, 4vmin, 3rem);
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.gate-screen .btn--gate-yes,
+.gate-screen .btn--gate-no {
+  font-size: clamp(0.7rem, 4vmin, 2rem);
+  padding: clamp(0.75rem, 4vmin, 2rem) clamp(1.25rem, 6vmin, 3rem);
+  border-width: clamp(2px, 0.5vmin, 4px);
+}
+.btn--gate-yes {
+  background: linear-gradient(180deg, #5a8a6a 0%, #4a7a5a 100%);
+  border-color: #6a9a7a;
+  box-shadow: inset 0 -3px 0 #3a5a4a, 0 4px 0 #0f0d14;
+}
+.btn--gate-yes:hover {
+  background: linear-gradient(180deg, #6a9a7a 0%, #5a8a6a 100%);
+}
+.btn--gate-no {
+  background: linear-gradient(180deg, #4a3845 0%, #3a2835 100%);
+  border-color: #6a5068;
+  color: #c8a0b0;
+}
+.btn--gate-no:hover {
+  background: linear-gradient(180deg, #5a4855 0%, #4a3845 100%);
+}
+.gate-go-away {
+  font-family: "Press Start 2P", cursive;
+  font-size: clamp(0.85rem, 5vmin, 2.5rem);
+  color: #887080;
+  text-align: center;
+  padding: clamp(1rem, 5vmin, 3rem);
+}
+.gate-go-away:not([hidden]) {
+  display: block;
+}
+
 .stage {
   position: fixed;
   inset: 0;

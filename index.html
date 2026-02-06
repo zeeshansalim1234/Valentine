@@ -13,6 +13,18 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
+    <div id="gateOverlay" class="gate-overlay" aria-labelledby="gateTitle">
+      <div id="gateScreen" class="gate-screen">
+        <div class="gate-hearts" aria-hidden="true">♥ ♥ ♥</div>
+        <h1 id="gateTitle" class="gate-title">Are you Nafeesa?</h1>
+        <div class="gate-buttons">
+          <button id="gateYesBtn" class="btn btn--pixel btn--gate-yes" type="button">Yes</button>
+          <button id="gateNoBtn" class="btn btn--pixel btn--gate-no" type="button">No</button>
+        </div>
+      </div>
+      <div id="gateGoAway" class="gate-go-away" hidden>Please go away</div>
+    </div>
+
     <main class="stage" aria-label="Journey map">
       <canvas id="game" tabindex="0"></canvas>
     </main>
