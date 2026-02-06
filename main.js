@@ -52,7 +52,7 @@
   const ISLAND_PATH_START_Y = ISLAND_CENTER_Y + ISLAND_HALF_H * 0.02;
   const ISLAND_RESORT_X = ISLAND_CENTER_X + ISLAND_HALF_W * 0.58;
   const ISLAND_RESORT_Y = ISLAND_CENTER_Y - ISLAND_HALF_H * 0.2;
-  const ISLAND_PATH_DOOR_OFFSET = 50;
+  const ISLAND_PATH_DOOR_OFFSET = 100;
 
   // Romantic pixel palette (soft greens, pinks, roses)
   const COLORS = {
@@ -181,11 +181,15 @@
   const islandSegLens = [];
   const islandCum = [0];
 
-  const islandStart = { x: ISLAND_PATH_START_X, y: ISLAND_PATH_START_Y };
+  // Path starts at the right edge of the ferry (ferry center: -25, -25 from path start; ferry width 100)
+  const islandStart = {
+    x: ISLAND_PATH_START_X - 25 + 50,
+    y: ISLAND_PATH_START_Y - 25,
+  };
   const islandEnd = { x: ISLAND_RESORT_X - ISLAND_PATH_DOOR_OFFSET, y: ISLAND_RESORT_Y };
-  const dipY = Math.max(islandStart.y, islandEnd.y) + ISLAND_HALF_H * 0.55;
+  const dipY = Math.max(islandStart.y, islandEnd.y) + ISLAND_HALF_H * 1.15;
   const islandControl = {
-    x: islandStart.x + (islandEnd.x - islandStart.x) * 0.4,
+    x: islandStart.x + (islandEnd.x - islandStart.x) * 0.5,
     y: dipY,
   };
   const ISLAND_PATH_T_MAX = 0.9;
@@ -209,8 +213,9 @@
     };
     islandPathPts.push(pt);
   }
-  // Ensure the very last point lands exactly at the resort door
-  islandPathPts[islandPathPts.length - 1] = { x: islandEnd.x, y: islandEnd.y };
+  // End path with a horizontal segment so it doesn't tilt awkwardly
+  const lastSample = islandPathPts[islandPathPts.length - 1];
+  islandPathPts[islandPathPts.length - 1] = { x: islandEnd.x, y: lastSample.y };
 
   for (let i = 0; i < islandPathPts.length - 1; i++) {
     const L = dist(islandPathPts[i], islandPathPts[i + 1]);
@@ -948,6 +953,42 @@
     ctx.restore();
   }
 
+  function drawFerryOnIsland() {
+    if (!ferryImg.complete || !ferryImg.naturalWidth) return;
+    const baseW = 100;
+    const scale = baseW / ferryImg.naturalWidth;
+    const w = baseW;
+    const h = ferryImg.naturalHeight * scale;
+    const cx = ISLAND_PATH_START_X - 25;
+    const cy = ISLAND_PATH_START_Y - 25;
+    const tiltRad = 0; // slight counter-clockwise tilt
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(tiltRad);
+    ctx.drawImage(ferryImg, -w / 2, -h, w, h);
+    ctx.restore();
+  }
+
+  function drawCarOnIsland() {
+    if (!carImg.complete || !carImg.naturalWidth) return;
+    const baseW = 42;
+    const scale = baseW / carImg.naturalWidth;
+    const w = baseW;
+    const h = carImg.naturalHeight * scale;
+    const cx = secondMapPos.x;
+    const cy = secondMapPos.y;
+    const bob2 = 1.5 * Math.sin(player.bob);
+    const tan2 = currentIslandTangent;
+    // Tilt upward slightly when path is going up (U shape)
+    const fullAngle = Math.atan2(tan2.y, tan2.x);
+    const angle = tan2.y < 0 ? clamp(fullAngle, -0.4, 0) : 0;
+    ctx.save();
+    ctx.translate(cx, cy + bob2);
+    ctx.rotate(angle);
+    ctx.drawImage(carImg, -w / 2, -h, w, h);
+    ctx.restore();
+  }
+
   function drawResortOnIsland() {
     if (!resortImg.complete || !resortImg.naturalWidth) return;
     const baseW = 160;
@@ -1064,6 +1105,7 @@
   const tentImg = new Image();
   const planeImg = new Image();
   const bridgeImg = new Image();
+  const ferryImg = new Image();
   const coveImg = new Image();
   const buildingImg = new Image();
   const resortImg = new Image();
@@ -1076,9 +1118,12 @@
   tentImg.src = "photos/tent.png" + imgVersion;
   planeImg.src = "plane.png" + imgVersion;
   bridgeImg.src = "bridge.png" + imgVersion;
+  ferryImg.src = "photos/ferry.png" + imgVersion;
   coveImg.src = "cove.png" + imgVersion;
   buildingImg.src = "building.png" + imgVersion;
   resortImg.src = "resort.png" + imgVersion;
+  const carImg = new Image();
+  carImg.src = "photos/car.png" + imgVersion;
 
   const SPRITE_HEIGHT = 38;
 
@@ -1292,6 +1337,9 @@
         islandEndPopupShown = true;
         openIslandEndPopup();
       }
+      if (islandS < islandTotalLen - 60) {
+        islandEndPopupShown = false;
+      }
 
       // Only return to main map when they deliberately walk back to the start (pressing down at the beginning)
       if (islandS <= 4 && move < 0) {
@@ -1430,52 +1478,15 @@
       // Small pixel clouds in the sky above the island
       drawIslandClouds();
 
-      // Island path + resort on the right side (future destination)
+      // Island path + ferry on the left, resort on the right
       drawIslandPath();
+      drawFerryOnIsland();
       drawResortOnIsland();
 
       drawHeartRain();
 
-      // Draw couple on island — same as map 1: perpendicular to path, same bob and draw order
-      const tan2 = currentIslandTangent;
-      const nx2 = -tan2.y;
-      const ny2 = tan2.x;
-      const sep2 = 7;
-      const phase2 = player.walkT % 1;
-      const bob2 = 1.5 * Math.sin(player.bob);
-      const zeechoPos2 = { x: secondMapPos.x - nx2 * sep2, y: secondMapPos.y - ny2 * sep2 };
-      const nafeesaPos2 = { x: secondMapPos.x + nx2 * sep2, y: secondMapPos.y + ny2 * sep2 };
-      const first2 = zeechoPos2.y < nafeesaPos2.y ? { pos: zeechoPos2, who: "zeecho" } : { pos: nafeesaPos2, who: "nafeesa" };
-      const second2 = zeechoPos2.y < nafeesaPos2.y ? { pos: nafeesaPos2, who: "nafeesa" } : { pos: zeechoPos2, who: "zeecho" };
-
-      const useSprites2 =
-        spriteZeechoSuit.complete &&
-        spriteNafeesaDress.complete &&
-        spriteZeechoSuit.naturalWidth > 0 &&
-        spriteNafeesaDress.naturalWidth > 0;
-      const nafeesaGroundOffset2 = 6;
-      const nafeesaHeightMult2 = 1.07;
-      const facing2 = (player.facing && (player.facing.x !== 0 || player.facing.y !== 0)) ? player.facing : { x: 1, y: 0 };
-
-      if (useSprites2) {
-        drawCharacterSprite(
-          first2.who === "zeecho" ? spriteZeechoSuit : spriteNafeesaDress,
-          first2.pos.x, first2.pos.y, facing2, bob2,
-          first2.who === "nafeesa" ? nafeesaGroundOffset2 : 0,
-          first2.who === "nafeesa" ? nafeesaHeightMult2 : 1
-        );
-        drawCharacterSprite(
-          second2.who === "zeecho" ? spriteZeechoSuit : spriteNafeesaDress,
-          second2.pos.x, second2.pos.y, facing2, bob2,
-          second2.who === "nafeesa" ? nafeesaGroundOffset2 : 0,
-          second2.who === "nafeesa" ? nafeesaHeightMult2 : 1
-        );
-      } else {
-        const firstPal2 = first2.who === "zeecho" ? palettes.a : palettes.b;
-        const secondPal2 = second2.who === "zeecho" ? palettes.a : palettes.b;
-        drawPerson(first2.pos.x, first2.pos.y, firstPal2, phase2, facing2);
-        drawPerson(second2.pos.x, second2.pos.y, secondPal2, phase2, facing2);
-      }
+      // Draw car on island (replaces Zeeshan & Nafeesa sprites)
+      drawCarOnIsland();
 
       ctx.restore();
       return;
