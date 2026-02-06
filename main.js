@@ -52,7 +52,7 @@
   const ISLAND_PATH_START_Y = ISLAND_CENTER_Y + ISLAND_HALF_H * 0.02;
   const ISLAND_RESORT_X = ISLAND_CENTER_X + ISLAND_HALF_W * 0.58;
   const ISLAND_RESORT_Y = ISLAND_CENTER_Y - ISLAND_HALF_H * 0.2;
-  const ISLAND_PATH_DOOR_OFFSET = 100;
+  const ISLAND_PATH_DOOR_OFFSET = 24;
 
   // Romantic pixel palette (soft greens, pinks, roses)
   const COLORS = {
@@ -933,23 +933,41 @@
     ctx.drawImage(buildingImg, cx - w / 2, cy - h, w, h);
   }
 
+  const ISLAND_ROAD = {
+    edge: "#3d4a3d",
+    surface: "#5a6258",
+    surfaceLight: "#6d766a",
+    centerLine: "#8a8f7a",
+  };
+
   function drawIslandPath() {
     ctx.save();
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    // outer darker edge
-    ctx.strokeStyle = COLORS.pathEdge;
-    ctx.lineWidth = 10;
-    ctx.beginPath();
-    ctx.moveTo(islandPathPts[0].x, islandPathPts[0].y);
+
+    const path = new Path2D();
+    path.moveTo(islandPathPts[0].x, islandPathPts[0].y);
     for (let i = 1; i < islandPathPts.length; i++) {
-      ctx.lineTo(islandPathPts[i].x, islandPathPts[i].y);
+      path.lineTo(islandPathPts[i].x, islandPathPts[i].y);
     }
-    ctx.stroke();
-    // inner main path
-    ctx.strokeStyle = COLORS.path;
-    ctx.lineWidth = 5;
-    ctx.stroke();
+
+    // Road edge (dark border)
+    ctx.strokeStyle = ISLAND_ROAD.edge;
+    ctx.lineWidth = 22;
+    ctx.stroke(path);
+
+    // Road surface
+    ctx.strokeStyle = ISLAND_ROAD.surface;
+    ctx.lineWidth = 16;
+    ctx.stroke(path);
+
+    // Center line (dashed)
+    ctx.setLineDash([6, 8]);
+    ctx.strokeStyle = ISLAND_ROAD.centerLine;
+    ctx.lineWidth = 2;
+    ctx.stroke(path);
+    ctx.setLineDash([]);
+
     ctx.restore();
   }
 
